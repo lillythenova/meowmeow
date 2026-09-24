@@ -1,0 +1,2259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="launcher-version" content="1.0.0" />
+  <title>Game Launcher // Offline Vault</title>
+  <style>
+    /* ========================================================
+       MATERIAL DESIGN 3 (M3 / MATERIAL YOU) DESIGN SYSTEM
+       ======================================================== */
+    :root {
+      /* M3 Dark Theme Surface & Tonal Palette */
+      --md-sys-color-surface: #111318;
+      --md-sys-color-surface-dim: #111318;
+      --md-sys-color-surface-bright: #37393e;
+      --md-sys-color-surface-container-lowest: #0c0e13;
+      --md-sys-color-surface-container-low: #191c20;
+      --md-sys-color-surface-container: #1d2024;
+      --md-sys-color-surface-container-high: #282a2f;
+      --md-sys-color-surface-container-highest: #33353a;
+
+      /* M3 Text & Contrast */
+      --md-sys-color-on-surface: #e2e2e9;
+      --md-sys-color-on-surface-variant: #c4c6d0;
+      --md-sys-color-inverse-surface: #e2e2e9;
+      --md-sys-color-inverse-on-surface: #2e3036;
+
+      /* M3 Mint/Emerald Primary Tokens */
+      --md-sys-color-primary: #85d796;
+      --md-sys-color-on-primary: #00391b;
+      --md-sys-color-primary-container: #00522c;
+      --md-sys-color-on-primary-container: #a0f4b1;
+
+      /* M3 Secondary & Navigation Rail Tonal Tokens */
+      --md-sys-color-secondary-container: #394a3d;
+      --md-sys-color-on-secondary-container: #d5e7d5;
+
+      /* M3 Outline & Dividers */
+      --md-sys-color-outline: #8c9199;
+      --md-sys-color-outline-variant: rgba(255, 255, 255, 0.1);
+
+      /* M3 Error / Danger */
+      --md-sys-color-error: #ffb4ab;
+      --md-sys-color-on-error: #690005;
+
+      /* M3 Shape Scale */
+      --md-sys-shape-corner-extra-small: 4px;
+      --md-sys-shape-corner-small: 8px;
+      --md-sys-shape-corner-medium: 12px;
+      --md-sys-shape-corner-large: 16px;
+      --md-sys-shape-corner-extra-large: 28px;
+      --md-sys-shape-corner-full: 9999px;
+
+      /* M3 Elevation Layers & Stacking */
+      --z-base: 1;
+      --z-vignette: 2;
+      --z-hero-content: 10;
+      --z-floating-docks: 20;
+      --z-sheet: 40;
+      --z-runner: 60;
+      --z-snackbar: 70;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      height: 100dvh;
+      width: 100vw;
+      overflow: hidden;
+      background: var(--md-sys-color-surface);
+      color: var(--md-sys-color-on-surface);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", Helvetica, Arial, sans-serif;
+      user-select: none;
+      -webkit-font-smoothing: antialiased;
+      padding-top: env(safe-area-inset-top);
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    :focus-visible {
+      outline: 2px solid var(--md-sys-color-primary);
+      outline-offset: 2px;
+    }
+
+    .tabular-nums {
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Scrollbars */
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.15); border-radius: 2px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.28); }
+
+    /* ========================================================
+       FULL-BLEED CINEMATIC BACKDROP
+       ======================================================== */
+    .hero-viewport {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: var(--z-base);
+      overflow: hidden;
+      background: var(--md-sys-color-surface);
+    }
+
+    .hero-bg-layer {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center;
+      transition: opacity 250ms cubic-bezier(0.2, 0.0, 0, 1.0), transform 400ms cubic-bezier(0.2, 0.0, 0, 1.0);
+      transform: scale(1.02);
+      filter: brightness(0.82);
+      opacity: 0;
+    }
+    .hero-bg-layer.active {
+      opacity: 1;
+    }
+
+    .hero-vignette {
+      position: absolute;
+      inset: 0;
+      z-index: var(--z-vignette);
+      background:
+        linear-gradient(to right, rgba(17, 19, 24, 0.96) 0%, rgba(17, 19, 24, 0.82) 36%, rgba(17, 19, 24, 0.25) 65%, rgba(17, 19, 24, 0.4) 100%),
+        linear-gradient(to top, rgba(17, 19, 24, 0.98) 0%, rgba(17, 19, 24, 0.35) 32%, transparent 70%),
+        linear-gradient(to bottom, rgba(17, 19, 24, 0.65) 0%, transparent 22%);
+      pointer-events: none;
+    }
+
+    /* ========================================================
+       MODAL DIALOGS & OVERLAYS (MATERIAL 3 SURFACES)
+       ======================================================== */
+    .m3-dialog-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(8, 10, 14, 0.78);
+      backdrop-filter: blur(16px);
+      z-index: var(--z-sheet);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 200ms ease;
+    }
+    .m3-dialog-backdrop.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .m3-dialog-card {
+      width: 100%;
+      max-width: 460px;
+      background: rgba(26, 30, 38, 0.95);
+      backdrop-filter: blur(28px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: var(--md-sys-shape-corner-extra-large);
+      padding: 26px;
+      box-shadow: 0 16px 48px rgba(0, 0, 0, 0.7);
+      transform: scale(0.95);
+      transition: transform 200ms cubic-bezier(0.2, 0, 0, 1);
+    }
+    .m3-dialog-backdrop.open .m3-dialog-card {
+      transform: scale(1);
+    }
+
+    /* Global Fullscreen Drag Overlay */
+    .global-drop-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(14, 17, 23, 0.92);
+      backdrop-filter: blur(20px);
+      border: 3px dashed var(--md-sys-color-primary);
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      color: #ffffff;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 150ms ease;
+    }
+    .global-drop-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    /* Game Card Action Pill / Icon */
+    .m3-card-action-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(255, 255, 255, 0.05);
+      color: rgba(255, 255, 255, 0.65);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      flex-shrink: 0;
+      opacity: 0.45;
+      transition: opacity 150ms ease, background-color 150ms ease, color 150ms ease, transform 150ms ease;
+    }
+    .m3-game-card:hover .m3-card-action-btn,
+    .m3-card-action-btn:focus {
+      opacity: 1;
+    }
+    .m3-card-action-btn:hover {
+      background: rgba(255, 255, 255, 0.2);
+      color: #ffffff;
+      transform: scale(1.12);
+    }
+    .m3-card-action-btn svg { width: 13px; height: 13px; fill: currentColor; }
+
+    /* Game Bar Action Cluster */
+    .game-bar-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .game-bar-sub-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    /* ========================================================
+       MATERIAL 3 NAVIGATION RAIL (LEFT DOCK)
+       ======================================================== */
+    .m3-nav-rail {
+      position: absolute;
+      top: 24px;
+      left: 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      z-index: var(--z-floating-docks);
+      pointer-events: auto;
+    }
+
+    .rail-brand-btn {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: rgba(22, 26, 33, 0.75);
+      backdrop-filter: blur(24px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: #ffffff;
+      transition: transform 150ms ease, background-color 150ms ease, border-color 150ms ease;
+    }
+    .rail-brand-btn:hover {
+      background: rgba(35, 42, 54, 0.9);
+      border-color: rgba(255, 255, 255, 0.25);
+      transform: scale(1.06);
+    }
+    .rail-brand-btn svg { width: 20px; height: 20px; fill: currentColor; }
+
+    .rail-dest-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      align-items: center;
+      padding: 6px 4px;
+      background: rgba(22, 26, 33, 0.75);
+      backdrop-filter: blur(24px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 24px;
+    }
+
+    .rail-dest-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: transparent;
+      border: none;
+      color: rgba(255, 255, 255, 0.55);
+      cursor: pointer;
+      transition: color 150ms ease, background-color 150ms ease, transform 150ms ease;
+    }
+    .rail-dest-btn:hover {
+      color: #ffffff;
+      background: rgba(255, 255, 255, 0.1);
+      transform: scale(1.08);
+    }
+    .rail-dest-btn.active {
+      background: rgba(255, 255, 255, 0.18);
+      color: #ffffff;
+    }
+    .rail-dest-btn svg { width: 18px; height: 18px; fill: currentColor; }
+    .rail-dest-label { display: none; }
+    .rail-badge-dot {
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--md-sys-color-primary);
+      box-shadow: 0 0 6px var(--md-sys-color-primary);
+      pointer-events: none;
+    }
+
+    /* ========================================================
+       LEFT HERO CONTENT AREA (M3 TYPOGRAPHY & BUTTONS)
+       ======================================================== */
+    .hero-content-area {
+      position: absolute;
+      bottom: 52px;
+      left: 96px;
+      max-width: 540px;
+      z-index: var(--z-hero-content);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      pointer-events: auto;
+    }
+
+    /* M3 Pill Chip */
+    .m3-hero-chip {
+      font-size: 0.7rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      padding: 4px 14px;
+      border-radius: var(--md-sys-shape-corner-full);
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      color: #ffffff;
+      width: fit-content;
+      backdrop-filter: blur(16px);
+    }
+
+    /* Hero Headline Large */
+    .m3-hero-title {
+      font-size: 3.4rem;
+      font-weight: 800;
+      letter-spacing: -0.025em;
+      line-height: 1.05;
+      color: #ffffff;
+      text-transform: uppercase;
+      text-shadow: 0 4px 24px rgba(0, 0, 0, 0.75);
+      text-wrap: balance;
+      transition: opacity 150ms ease;
+    }
+
+    /* Hero Body */
+    .m3-hero-desc {
+      font-size: 0.92rem;
+      line-height: 1.6;
+      color: rgba(226, 226, 233, 0.82);
+      text-wrap: pretty;
+      text-shadow: 0 2px 10px rgba(0, 0, 0, 0.7);
+      transition: opacity 150ms ease;
+    }
+
+    .hero-actions-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 14px;
+    }
+
+    /* Filled Primary Play Button */
+    .m3-btn-play {
+      background: #ffffff;
+      color: #111318;
+      border: none;
+      height: 46px;
+      padding: 0 30px;
+      border-radius: var(--md-sys-shape-corner-full);
+      font-size: 0.85rem;
+      font-weight: 800;
+      letter-spacing: 0.6px;
+      text-transform: uppercase;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 4px 18px rgba(0, 0, 0, 0.35);
+      transition: transform 150ms ease, background-color 150ms ease, box-shadow 150ms ease;
+    }
+    .m3-btn-play:hover {
+      background: #f0f2f5;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 22px rgba(0, 0, 0, 0.45);
+    }
+    .m3-btn-play:active { transform: scale(0.98); }
+    .m3-btn-play svg { width: 15px; height: 15px; fill: #111318; }
+
+    /* Outlined Button (Favorite) */
+    .m3-btn-outlined {
+      background: rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      color: #ffffff;
+      height: 46px;
+      padding: 0 24px;
+      border-radius: var(--md-sys-shape-corner-full);
+      font-size: 0.82rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: background-color 150ms ease, transform 150ms ease, border-color 150ms ease;
+    }
+    .m3-btn-outlined:hover {
+      background: rgba(255, 255, 255, 0.14);
+      border-color: rgba(255, 255, 255, 0.28);
+      transform: translateY(-2px);
+    }
+    .m3-btn-outlined svg { width: 14px; height: 14px; fill: currentColor; }
+
+    /* ========================================================
+       RIGHT-SIDE FLOATING GAME BAR (M3 ELEVATED CARDS)
+       ======================================================== */
+    .game-bar-dock {
+      position: absolute;
+      top: 76px;
+      bottom: 32px;
+      right: 32px;
+      width: 290px;
+      z-index: var(--z-floating-docks);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      pointer-events: auto;
+    }
+
+    .game-bar-list {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding-right: 4px;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+    }
+    .game-bar-list::-webkit-scrollbar {
+      width: 4px;
+    }
+    .game-bar-list::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 4px;
+    }
+
+    /* M3 Elevated Tonal Card */
+    .m3-game-card {
+      background: rgba(22, 26, 33, 0.65);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 16px;
+      padding: 8px 12px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer;
+      transition: transform 150ms cubic-bezier(0.2, 0, 0, 1), background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+    }
+    .m3-game-card:hover {
+      background: rgba(30, 36, 46, 0.85);
+      border-color: rgba(255, 255, 255, 0.2);
+      transform: translateX(-3px);
+    }
+    .m3-game-card.active {
+      background: rgba(36, 44, 56, 0.9);
+      border: 1.5px solid rgba(255, 255, 255, 0.4);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    }
+
+    .m3-card-thumb {
+      width: 48px;
+      height: 48px;
+      border-radius: 10px;
+      object-fit: cover;
+      background: rgba(255, 255, 255, 0.05);
+      flex-shrink: 0;
+    }
+
+    .m3-card-meta {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .m3-card-tag {
+      font-size: 0.62rem;
+      font-weight: 700;
+      padding: 1px 7px;
+      border-radius: 9999px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: rgba(255, 255, 255, 0.6);
+      width: fit-content;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .m3-card-title {
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: #ffffff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* M3 Tonal Action Button */
+    .m3-btn-add {
+      width: 100%;
+      background: rgba(255, 255, 255, 0.06);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: rgba(255, 255, 255, 0.85);
+      padding: 11px 16px;
+      border-radius: var(--md-sys-shape-corner-full);
+      font-size: 0.76rem;
+      font-weight: 700;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease;
+    }
+    .m3-btn-add:hover {
+      background: rgba(255, 255, 255, 0.12);
+      color: #ffffff;
+      border-color: rgba(255, 255, 255, 0.25);
+    }
+
+    /* ========================================================
+       MATERIAL 3 MODAL SIDE SHEET (CREATOR STUDIO)
+       ======================================================== */
+    .m3-side-sheet {
+      position: fixed;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      width: 100%;
+      max-width: 440px;
+      background: var(--md-sys-color-surface-container-high);
+      backdrop-filter: blur(28px);
+      border-left: 1px solid var(--md-sys-color-outline-variant);
+      border-radius: var(--md-sys-shape-corner-extra-large) 0 0 var(--md-sys-shape-corner-extra-large);
+      padding: 32px 28px;
+      z-index: var(--z-sheet);
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      overflow-y: auto;
+      transform: translateX(100%);
+      transition: transform 250ms cubic-bezier(0.2, 0, 0, 1);
+      box-shadow: -10px 0 40px rgba(0, 0, 0, 0.7);
+    }
+    .m3-side-sheet.open { transform: translateX(0); }
+
+    .m3-field-group { display: flex; flex-direction: column; gap: 6px; }
+    .m3-field-label {
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: var(--md-sys-color-primary);
+      letter-spacing: 0.4px;
+    }
+    .m3-field-input, .m3-field-textarea {
+      width: 100%;
+      background: var(--md-sys-color-surface-container);
+      border: 1px solid var(--md-sys-color-outline-variant);
+      border-radius: var(--md-sys-shape-corner-small);
+      padding: 10px 14px;
+      font-size: 0.88rem;
+      color: var(--md-sys-color-on-surface);
+      font-family: inherit;
+      transition: border-color 150ms ease;
+    }
+    .m3-field-input:focus, .m3-field-textarea:focus {
+      border-color: var(--md-sys-color-primary);
+      outline: none;
+    }
+
+    .m3-dropzone {
+      border: 2px dashed var(--md-sys-color-outline-variant);
+      border-radius: var(--md-sys-shape-corner-medium);
+      padding: 18px;
+      text-align: center;
+      cursor: pointer;
+      background: var(--md-sys-color-surface-container-lowest);
+      transition: border-color 150ms ease;
+    }
+    .m3-dropzone:hover, .m3-dropzone.dragover { border-color: var(--md-sys-color-primary); }
+
+    /* ========================================================
+       SEAMLESS GAME RUNNER (EDGE-TO-EDGE WITH AUTO-HIDE PILL)
+       ======================================================== */
+    .game-runner-viewport {
+      position: fixed;
+      inset: 0;
+      background: #000000;
+      z-index: var(--z-runner);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 150ms ease;
+    }
+    .game-runner-viewport.active { opacity: 1; pointer-events: auto; }
+
+    .game-frame {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      border: none;
+      background: #000000;
+      z-index: 1;
+    }
+
+    /* Invisible hover trigger zone at the very top edge */
+    .runner-hover-zone {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 52px;
+      z-index: 9;
+      pointer-events: auto;
+    }
+
+    /* Floating, auto-hiding runner control capsule */
+    .runner-top-bar {
+      position: absolute;
+      top: 18px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-28px);
+      z-index: 10;
+      height: 44px;
+      background: rgba(18, 20, 26, 0.85);
+      backdrop-filter: blur(24px);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: var(--md-sys-shape-corner-full);
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 0 16px 0 20px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.75);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 250ms ease, transform 250ms cubic-bezier(0.2, 0, 0, 1);
+    }
+    .runner-top-bar.visible {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+      pointer-events: auto;
+    }
+    .runner-title-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.84rem;
+      font-weight: 800;
+      color: #ffffff;
+      white-space: nowrap;
+    }
+    .fps-chip {
+      font-size: 0.68rem;
+      font-weight: 800;
+      padding: 2px 8px;
+      border-radius: var(--md-sys-shape-corner-full);
+      background: var(--md-sys-color-primary-container);
+      color: var(--md-sys-color-on-primary-container);
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* M3 Snackbar / Notification Tray */
+    .m3-snackbar-tray {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: var(--z-snackbar);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      pointer-events: none;
+    }
+    .m3-snackbar {
+      background: var(--md-sys-color-inverse-surface);
+      color: var(--md-sys-color-inverse-on-surface);
+      border-radius: var(--md-sys-shape-corner-small);
+      padding: 12px 18px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+      transform: translateY(12px);
+      opacity: 0;
+      transition: transform 150ms ease, opacity 150ms ease;
+    }
+    .m3-snackbar.show { transform: translateY(0); opacity: 1; }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Screen Reader Live Region -->
+  <div id="a11y-announcer" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+
+  <!-- Full-bleed Cinematic Backdrop -->
+  <div class="hero-viewport">
+    <img id="hero-bg" class="hero-bg-layer" alt="" aria-hidden="true" src="" decoding="async" />
+    <div class="hero-vignette" aria-hidden="true"></div>
+  </div>
+
+  <!-- Floating Navigation Dock (Left) -->
+  <nav class="m3-nav-rail" role="navigation" aria-label="Main Navigation">
+    <div class="rail-brand-btn" id="rail-home-btn" role="button" tabindex="0" aria-label="Home" title="Game Vault">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h6v6H4zm10 0h6v6h-6zM4 14h6v6H4zm10 0h6v6h-6z"/></svg>
+    </div>
+
+    <div class="rail-dest-group">
+      <button class="rail-dest-btn active" id="rail-lib-btn" aria-label="Vault Library" title="Vault Library">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h6v6H4zm10 0h6v6h-6zM4 14h6v6H4zm10 0h6v6h-6z"/></svg>
+      </button>
+
+      <button class="rail-dest-btn" id="rail-add-btn" aria-label="Add Game" title="Add Game to Vault">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+      </button>
+
+      <button class="rail-dest-btn" id="rail-update-btn" aria-label="Update Launcher" title="Update Launcher" style="position: relative;">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+        <span class="rail-badge-dot" id="rail-update-dot" style="display: none;"></span>
+      </button>
+
+      <button class="rail-dest-btn" id="rail-export-btn" aria-label="Export Full Vault" title="Export Full Vault File">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+      </button>
+
+      <button class="rail-dest-btn" id="rail-fs-btn" aria-label="Toggle Fullscreen" title="Toggle Fullscreen (F)">
+        <svg id="rail-fs-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
+      </button>
+    </div>
+  </nav>
+
+  <!-- ========================================================
+       LEFT HERO CONTENT & ACTION STACK
+       ======================================================== -->
+  <main class="hero-content-area" role="main" id="hero-content" style="display: none;" hidden>
+    <span class="m3-hero-chip" id="hero-badge">OFFLINE READY</span>
+    <h1 class="m3-hero-title" id="hero-title"></h1>
+    <p class="m3-hero-desc" id="hero-desc"></p>
+    <div class="hero-actions-row">
+      <button class="m3-btn-play" id="btn-hero-play" aria-label="Play selected game">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+        <span>Play</span>
+      </button>
+      <button class="m3-btn-outlined" id="btn-hero-fav" aria-label="Toggle favorite">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
+        <span id="fav-label">Add to Favorite</span>
+      </button>
+      <button class="m3-btn-outlined" id="btn-hero-export-game" aria-label="Export single game as standalone HTML" title="Export this game as standalone HTML">
+        <svg viewBox="0 0 24 24" aria-hidden="true" style="width: 14px; height: 14px; fill: currentColor;"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+        <span>Export Game</span>
+      </button>
+    </div>
+  </main>
+
+  <!-- ========================================================
+       RIGHT-SIDE FLOATING GAME BAR (M3 ELEVATED CARDS)
+       ======================================================== -->
+  <nav class="game-bar-dock" role="navigation" aria-label="Game Bar">
+    <div class="game-bar-list" id="game-bar-items" role="list">
+      <!-- Injected dynamically -->
+    </div>
+    <div class="game-bar-actions">
+      <button class="m3-btn-add" id="btn-add-game-bar" aria-label="Add new game">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+        <span>Add Game +</span>
+      </button>
+      <div class="game-bar-sub-actions">
+        <button class="m3-btn-outlined" id="btn-update-bar" style="flex: 1; height: 34px; padding: 0 10px; font-size: 0.72rem;" title="Update older launcher file">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor" aria-hidden="true" style="margin-right: 4px;"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+          <span>Update</span>
+        </button>
+        <button class="m3-btn-outlined" id="btn-export-bar" style="flex: 1; height: 34px; padding: 0 10px; font-size: 0.72rem;" title="Export full standalone launcher file">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor" aria-hidden="true" style="margin-right: 4px;"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+          <span>Export All</span>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ========================================================
+       MATERIAL 3 MODAL DIALOG: UPDATE LAUNCHER
+       ======================================================== -->
+  <div class="m3-dialog-backdrop" id="update-modal" role="dialog" aria-modal="true" aria-labelledby="update-modal-title" hidden>
+    <div class="m3-dialog-card">
+      <div class="m3-sheet-header">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <div style="width: 32px; height: 32px; border-radius: 50%; background: var(--md-sys-color-primary-container); color: var(--md-sys-color-on-primary-container); display: flex; align-items: center; justify-content: center;">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+          </div>
+          <h2 class="m3-sheet-title" id="update-modal-title" style="margin: 0; font-size: 1.1rem;">Update Launcher</h2>
+          <span class="m3-hero-chip" id="current-version-chip" style="margin: 0; font-size: 0.72rem; padding: 2px 8px; font-weight: 700;">v1.0.0</span>
+        </div>
+        <button class="m3-icon-btn" id="close-update-btn" aria-label="Close update dialog">✕</button>
+      </div>
+
+      <p style="font-size: 0.85rem; color: var(--md-sys-color-on-surface-variant); line-height: 1.5; margin: 14px 0 16px;">
+        Upgrade an existing launcher file to the latest version. All your saved games and metadata will be preserved, and the updated standalone file will be downloaded automatically.
+      </p>
+
+      <!-- Section 1: Auto-Update Stream (Configured directly in file) -->
+      <div id="remote-update-section" style="margin-bottom: 16px; padding: 12px 14px; border-radius: 12px; background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08);">
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+          <div>
+            <div style="font-size: 0.82rem; font-weight: 700; color: var(--md-sys-color-on-surface);">Auto-Update Stream</div>
+            <div id="update-url-display" style="font-size: 0.72rem; color: var(--md-sys-color-on-surface-variant); margin-top: 3px; word-break: break-all; font-family: monospace;">Checking upstream...</div>
+          </div>
+          <button type="button" class="m3-btn-play" id="btn-fetch-update-url" style="height: 36px; padding: 0 16px; font-size: 0.75rem; flex-shrink: 0;">↻ Check Now</button>
+        </div>
+      </div>
+
+      <div id="update-status" style="display: none; margin-bottom: 16px; padding: 12px; border-radius: 8px; font-size: 0.82rem; background: var(--md-sys-color-surface-container);"></div>
+
+      <!-- Section 2: Manual Update from File -->
+      <div style="display: flex; align-items: center; gap: 10px; margin: 16px 0 12px;">
+        <div style="flex: 1; height: 1px; background: rgba(255, 255, 255, 0.1);"></div>
+        <span style="font-size: 0.7rem; color: var(--md-sys-color-on-surface-variant); text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">Or update from local file</span>
+        <div style="flex: 1; height: 1px; background: rgba(255, 255, 255, 0.1);"></div>
+      </div>
+
+      <div class="m3-dropzone" id="update-dropzone" tabindex="0" role="button" aria-label="Select or drop older launcher HTML file">
+        <svg viewBox="0 0 24 24" width="34" height="34" fill="var(--md-sys-color-primary)" aria-hidden="true"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+        <div id="update-drop-filename" style="font-size: 0.85rem; font-weight: 700; color: var(--md-sys-color-on-surface); margin-top: 8px;">Click to Choose Older Launcher (.html)</div>
+        <div style="font-size: 0.74rem; color: var(--md-sys-color-on-surface-variant); margin-top: 4px;">or drag and drop file here</div>
+        <input type="file" id="update-file-input" accept=".html,.htm" style="display: none;" />
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
+        <button type="button" class="m3-btn-outlined" id="cancel-update-btn" style="height: 38px; padding: 0 18px; font-size: 0.8rem;">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================
+       MATERIAL 3 MODAL SIDE SHEET (CREATOR STUDIO)
+       ======================================================== -->
+  <div class="m3-side-sheet" id="studio-sheet" role="dialog" aria-modal="true" aria-labelledby="studio-title" hidden>
+    <div class="m3-sheet-header">
+      <h2 class="m3-sheet-title" id="studio-title">Add Game to Vault</h2>
+      <button class="m3-icon-btn" id="close-studio-btn" aria-label="Close studio">✕</button>
+    </div>
+
+    <form id="studio-form" onsubmit="return false;" novalidate>
+      <div class="m3-field-group">
+        <label class="m3-field-label" for="new-game-title">Game Title *</label>
+        <input class="m3-field-input" id="new-game-title" type="text" placeholder="e.g. Cyber Runner" required autocomplete="off" />
+      </div>
+
+      <div class="m3-field-group" style="margin-top: 14px;">
+        <label class="m3-field-label" for="new-game-genre">Genre / Category Tag</label>
+        <input class="m3-field-input" id="new-game-genre" type="text" placeholder="e.g. Most Played, Arcade, Action" autocomplete="off" />
+      </div>
+
+      <div class="m3-field-group" style="margin-top: 14px;">
+        <label class="m3-field-label" for="new-game-desc">Description Synopsis</label>
+        <textarea class="m3-field-textarea" id="new-game-desc" rows="3" placeholder="Brief gameplay rules or story..."></textarea>
+      </div>
+
+      <!-- HTML Game Payload Dropzone -->
+      <div class="m3-field-group" style="margin-top: 14px;">
+        <label class="m3-field-label">Single-file HTML Game *</label>
+        <div class="m3-dropzone" id="html-dropzone" tabindex="0" role="button" aria-label="Drop single HTML game file here or click to browse">
+          <svg viewBox="0 0 24 24" width="26" height="26" fill="var(--md-sys-color-primary)" aria-hidden="true"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
+          <div id="html-filename" style="font-size: 0.8rem; color: var(--md-sys-color-on-surface-variant); margin-top: 6px;">Click or drag .html game file here</div>
+          <input type="file" id="html-file-input" accept=".html,.htm" style="display: none;" />
+        </div>
+        <div id="compression-stats" style="display: none; font-size: 0.72rem; color: var(--md-sys-color-primary); margin-top: 4px;" class="tabular-nums"></div>
+      </div>
+
+      <!-- Optional Banner -->
+      <div class="m3-field-group" style="margin-top: 14px;">
+        <label class="m3-field-label">Hero Artwork / Wallpaper (Optional)</label>
+        <div class="m3-dropzone" id="banner-dropzone" tabindex="0" role="button" aria-label="Upload hero image">
+          <div id="banner-filename" style="font-size: 0.8rem; color: var(--md-sys-color-on-surface-variant);">Click or drag image file (.png, .jpg, .webp)</div>
+          <input type="file" id="banner-file-input" accept="image/*" style="display: none;" />
+        </div>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px;">
+        <button type="button" class="m3-btn-outlined" id="cancel-studio-btn" style="height: 40px; padding: 0 18px; font-size: 0.8rem;">Cancel</button>
+        <button type="submit" class="m3-btn-play" id="submit-game-btn" style="height: 40px; padding: 0 24px; font-size: 0.8rem;">Save to Vault</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- ========================================================
+       SEAMLESS GAME RUNNER (M3 TOP APP BAR)
+       ======================================================== -->
+  <section id="runner-overlay" class="game-runner-viewport" role="region" aria-label="Game runtime" aria-modal="true" hidden>
+    <div class="runner-hover-zone" id="runner-hover-zone"></div>
+    <div class="runner-top-bar" id="runner-top-bar">
+      <div class="runner-title-group">
+        <span id="runner-game-name">Game Title</span>
+        <span class="fps-chip" id="runner-fps">60 FPS</span>
+      </div>
+      <div style="display: flex; gap: 8px; align-items: center;">
+        <button class="m3-btn-outlined" id="runner-fullscreen-btn" style="height: 30px; padding: 0 12px; font-size: 0.72rem;" aria-label="Toggle fullscreen mode" title="Toggle Fullscreen">
+          <svg id="runner-fullscreen-icon" viewBox="0 0 24 24" aria-hidden="true" style="width: 13px; height: 13px; fill: currentColor; margin-right: 4px;"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
+          <span id="runner-fullscreen-label">Fullscreen</span>
+        </button>
+        <button class="m3-btn-outlined" id="runner-close-btn" style="height: 30px; padding: 0 14px; font-size: 0.72rem; background: rgba(255, 100, 100, 0.12); border-color: rgba(255, 100, 100, 0.25); color: #ffb4ab;" aria-label="Exit game and return to launcher">
+          <span>Exit Game</span>
+        </button>
+      </div>
+    </div>
+    <iframe id="game-frame" class="game-frame" allow="fullscreen; pointer-lock; keyboard-map; gamepads; autoplay" allowfullscreen="true" sandbox="allow-scripts allow-same-origin allow-pointer-lock allow-downloads" tabindex="0" title="Game Frame"></iframe>
+  </section>
+
+  <!-- M3 Snackbar Notification Tray -->
+  <div class="m3-snackbar-tray" id="m3-snackbar-tray" aria-live="polite"></div>
+
+  <!-- ========================================================
+       APPLICATION LOGIC & CORE DATA INGESTION
+       ======================================================== -->
+  <script>
+    /*__GAMES_DATA_START__*/
+    const GAMES = [];
+    /*__GAMES_DATA_END__*/
+
+    const LAUNCHER_VERSION = '1.0.0';
+    const AUTO_UPDATE_URL = 'https://raw.githubusercontent.com/lillythenova/meowmeow/main/launcher.html';
+
+    /* Application State */
+    let allGames = [];
+    let selectedGameId = null;
+    let pendingPayloadGzip = null;
+    let pendingBannerData = null;
+    let lastActiveElement = null;
+    let fpsInterval = null;
+
+    function normalizeGame(g) {
+      if (!g) return null;
+      return {
+        id: g.id || ('game_' + Math.random().toString(36).substr(2, 9)),
+        title: g.title || 'Untitled Game',
+        genre: g.genre || (Array.isArray(g.tags) ? g.tags[0] : 'Arcade'),
+        badgeTag: g.badgeTag || (Array.isArray(g.tags) ? g.tags[0] : 'Offline Ready'),
+        desc: g.desc || g.description || 'Fast-paced standalone offline game with instant zero-latency canvas rendering.',
+        banner_base64: g.banner_base64 || g.banner_image || null,
+        payload_gzip: g.payload_gzip || g.compressed_data || null,
+        size_kb: g.size_kb || (g.compressed_size ? Math.round(g.compressed_size / 1024) : 24),
+        isFavorite: !!g.isFavorite,
+        addedAt: g.addedAt || Date.now()
+      };
+    }
+
+    /* Initialize Application */
+    document.addEventListener('DOMContentLoaded', () => {
+      const rawList = Array.isArray(GAMES) ? GAMES : [];
+      allGames = rawList.map(normalizeGame).filter(Boolean);
+
+      try {
+        const stored = localStorage.getItem('game_vault_library');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed)) {
+            parsed.forEach(pg => {
+              const norm = normalizeGame(pg);
+              if (norm && !allGames.some(g => g.id === norm.id)) {
+                allGames.push(norm);
+              }
+            });
+          }
+        }
+      } catch (e) {
+        console.warn('Storage read error:', e);
+      }
+
+      if (allGames.length > 0) {
+        selectedGameId = allGames[0].id;
+      }
+
+      setupEventListeners();
+      renderApp();
+
+      // Auto-update check if AUTO_UPDATE_URL is configured (zero-confirmation)
+      if (typeof AUTO_UPDATE_URL !== 'undefined' && AUTO_UPDATE_URL) {
+        setTimeout(() => {
+          checkAndAutoUpdate(AUTO_UPDATE_URL, true);
+        }, 1200);
+      }
+    });
+
+    /* ========================================================
+       GZIP DECOMPRESSION & COMPRESSION
+       ======================================================== */
+    async function decompressGzip(base64Str) {
+      const binStr = atob(base64Str);
+      const bytes = new Uint8Array(binStr.length);
+      for (let i = 0; i < binStr.length; i++) bytes[i] = binStr.charCodeAt(i);
+
+      const ds = new DecompressionStream('gzip');
+      const writer = ds.writable.getWriter();
+      writer.write(bytes);
+      writer.close();
+
+      const reader = ds.readable.getReader();
+      const chunks = [];
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value);
+      }
+      const totalLen = chunks.reduce((acc, c) => acc + c.length, 0);
+      const res = new Uint8Array(totalLen);
+      let offset = 0;
+      for (let chunk of chunks) {
+        res.set(chunk, offset);
+        offset += chunk.length;
+      }
+      return new TextDecoder().decode(res);
+    }
+
+    async function compressGzip(rawStr) {
+      const bytes = new TextEncoder().encode(rawStr);
+      const cs = new CompressionStream('gzip');
+      const writer = cs.writable.getWriter();
+      writer.write(bytes);
+      writer.close();
+
+      const reader = cs.readable.getReader();
+      const chunks = [];
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value);
+      }
+      const totalLen = chunks.reduce((acc, c) => acc + c.length, 0);
+      const res = new Uint8Array(totalLen);
+      let offset = 0;
+      for (let chunk of chunks) {
+        res.set(chunk, offset);
+        offset += chunk.length;
+      }
+      const chunkSize = 8192;
+      let binStr = '';
+      for (let i = 0; i < res.length; i += chunkSize) {
+        binStr += String.fromCharCode.apply(null, res.subarray(i, i + chunkSize));
+      }
+      return btoa(binStr);
+    }
+
+    /* ========================================================
+       RENDER ENGINE
+       ======================================================== */
+    function renderApp() {
+      renderGameBar();
+      renderHeroDetails();
+    }
+
+    function renderGameBar() {
+      const container = document.getElementById('game-bar-items');
+      container.innerHTML = '';
+
+      if (allGames.length === 0) {
+        const emptyNotice = document.createElement('div');
+        emptyNotice.style.padding = '24px 12px';
+        emptyNotice.style.color = 'var(--md-sys-color-on-surface-variant)';
+        emptyNotice.style.fontSize = '0.8rem';
+        emptyNotice.style.textAlign = 'center';
+        emptyNotice.textContent = 'Vault is empty. Tap "+ Add Game" below.';
+        container.appendChild(emptyNotice);
+        return;
+      }
+
+      allGames.forEach(game => {
+        const card = document.createElement('div');
+        card.className = `m3-game-card ${game.id === selectedGameId ? 'active' : ''}`;
+        card.tabIndex = 0;
+        card.setAttribute('role', 'listitem');
+        card.setAttribute('aria-label', `Select ${game.title}`);
+
+        const thumb = document.createElement('img');
+        thumb.className = 'm3-card-thumb';
+        thumb.alt = '';
+        thumb.setAttribute('aria-hidden', 'true');
+        thumb.loading = 'lazy';
+        thumb.decoding = 'async';
+        thumb.src = game.banner_base64 || generateDefaultThumb(game.title);
+
+        const meta = document.createElement('div');
+        meta.className = 'm3-card-meta';
+
+        const tag = document.createElement('span');
+        tag.className = 'm3-card-tag';
+        tag.textContent = game.badgeTag || game.genre || 'OFFLINE';
+
+        const title = document.createElement('div');
+        title.className = 'm3-card-title';
+        title.textContent = game.title;
+
+        meta.appendChild(tag);
+        meta.appendChild(title);
+
+        const exportBtn = document.createElement('button');
+        exportBtn.className = 'm3-card-action-btn';
+        exportBtn.title = `Export "${game.title}" as standalone HTML`;
+        exportBtn.setAttribute('aria-label', `Export ${game.title}`);
+        exportBtn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>';
+        exportBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          exportSingleGame(game);
+        });
+
+        card.appendChild(thumb);
+        card.appendChild(meta);
+        card.appendChild(exportBtn);
+
+        card.addEventListener('click', () => {
+          selectGame(game.id);
+        });
+
+        card.addEventListener('keydown', e => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            selectGame(game.id);
+          }
+        });
+
+        container.appendChild(card);
+      });
+    }
+
+    function renderHeroDetails() {
+      const heroContent = document.getElementById('hero-content');
+      const heroBg = document.getElementById('hero-bg');
+      const badge = document.getElementById('hero-badge');
+      const title = document.getElementById('hero-title');
+      const desc = document.getElementById('hero-desc');
+      const favLabel = document.getElementById('fav-label');
+
+      if (allGames.length === 0) {
+        heroBg.classList.remove('active');
+        if (heroContent) {
+          heroContent.setAttribute('hidden', '');
+          heroContent.style.display = 'none';
+        }
+        return;
+      }
+
+      if (heroContent) {
+        heroContent.removeAttribute('hidden');
+        heroContent.style.display = '';
+      }
+
+      const activeGame = allGames.find(g => g.id === selectedGameId) || allGames[0];
+      if (!activeGame) return;
+
+      if (activeGame.banner_base64) {
+        heroBg.src = activeGame.banner_base64;
+        heroBg.classList.add('active');
+      } else {
+        heroBg.classList.remove('active');
+      }
+
+      badge.textContent = activeGame.badgeTag || activeGame.genre || 'OFFLINE READY';
+      title.textContent = activeGame.title;
+      desc.textContent = activeGame.desc || '';
+      favLabel.textContent = activeGame.isFavorite ? 'Favorited ★' : 'Add to Favorite';
+    }
+
+    function selectGame(id) {
+      selectedGameId = id;
+      renderApp();
+      const game = allGames.find(g => g.id === id);
+      if (game) {
+        announceToScreenReader(`Selected ${game.title}`);
+      }
+    }
+
+    /* ========================================================
+       GAME RUNNER & LIFECYCLE
+       ======================================================== */
+    let runnerBarTimer = null;
+    function showRunnerControls(duration = 2500) {
+      const bar = document.getElementById('runner-top-bar');
+      if (!bar) return;
+      bar.classList.add('visible');
+      clearTimeout(runnerBarTimer);
+      if (duration > 0) {
+        runnerBarTimer = setTimeout(() => {
+          if (!bar.matches(':hover')) {
+            bar.classList.remove('visible');
+          }
+        }, duration);
+      }
+    }
+
+    function focusGameFrame() {
+      const frame = document.getElementById('game-frame');
+      if (!frame) return;
+      try {
+        frame.focus();
+        if (frame.contentWindow) {
+          frame.contentWindow.focus();
+        }
+      } catch (_) {}
+    }
+
+    async function launchGame(game) {
+      if (!game.payload_gzip) {
+        showSnackbar('Error: Game payload is empty.');
+        return;
+      }
+
+      showSnackbar(`Launching ${game.title}...`);
+      announceToScreenReader(`Launching ${game.title}`);
+
+      try {
+        const html = await decompressGzip(game.payload_gzip);
+        const runner = document.getElementById('runner-overlay');
+        const frame = document.getElementById('game-frame');
+        document.getElementById('runner-game-name').textContent = game.title;
+
+        frame.srcdoc = html;
+        runner.removeAttribute('hidden');
+        requestAnimationFrame(() => runner.classList.add('active'));
+
+        lastActiveElement = document.activeElement;
+
+        // Show runner controls temporarily so player sees exit/fullscreen options
+        showRunnerControls(3500);
+
+        frame.onload = () => {
+          focusGameFrame();
+          try {
+            frame.contentWindow.addEventListener('mousemove', (e) => {
+              if (e.clientY <= 60) {
+                showRunnerControls(2500);
+              }
+            });
+          } catch (_) {}
+        };
+
+        focusGameFrame();
+        setTimeout(focusGameFrame, 80);
+        setTimeout(focusGameFrame, 250);
+
+        startFpsMeter();
+      } catch (err) {
+        console.error('Launch failure:', err);
+        showSnackbar('Failed to launch game: ' + err.message);
+      }
+    }
+
+    function closeGameRunner() {
+      const runner = document.getElementById('runner-overlay');
+      const frame = document.getElementById('game-frame');
+      const bar = document.getElementById('runner-top-bar');
+      if (bar) bar.classList.remove('visible');
+      clearTimeout(runnerBarTimer);
+
+      runner.classList.remove('active');
+      setTimeout(() => {
+        runner.setAttribute('hidden', '');
+        frame.srcdoc = '';
+      }, 150);
+      stopFpsMeter();
+      if (lastActiveElement) lastActiveElement.focus();
+      announceToScreenReader('Returned to launcher');
+    }
+
+    function startFpsMeter() {
+      stopFpsMeter();
+      const meter = document.getElementById('runner-fps');
+      let frameCount = 0;
+      let lastTime = performance.now();
+      function tick(now) {
+        frameCount++;
+        if (now - lastTime >= 1000) {
+          const fps = Math.round((frameCount * 1000) / (now - lastTime));
+          meter.textContent = `${fps} FPS`;
+          frameCount = 0;
+          lastTime = now;
+        }
+        fpsInterval = requestAnimationFrame(tick);
+      }
+      fpsInterval = requestAnimationFrame(tick);
+    }
+
+    function stopFpsMeter() {
+      if (fpsInterval) {
+        cancelAnimationFrame(fpsInterval);
+        fpsInterval = null;
+      }
+    }
+
+    /* ========================================================
+       MATERIAL 3 SIDE SHEET (CREATOR STUDIO)
+       ======================================================== */
+    function openStudioSheet() {
+      lastActiveElement = document.activeElement;
+      const sheet = document.getElementById('studio-sheet');
+      sheet.removeAttribute('hidden');
+      requestAnimationFrame(() => sheet.classList.add('open'));
+      document.getElementById('new-game-title').focus();
+      trapFocus(sheet);
+    }
+
+    function closeStudioSheet() {
+      const sheet = document.getElementById('studio-sheet');
+      sheet.classList.remove('open');
+      setTimeout(() => sheet.setAttribute('hidden', ''), 250);
+      document.getElementById('studio-form').reset();
+      pendingPayloadGzip = null;
+      pendingBannerData = null;
+      document.getElementById('html-filename').textContent = 'Click or drag .html game file here';
+      document.getElementById('banner-filename').textContent = 'Click or drag image file (.png, .jpg, .webp)';
+      document.getElementById('compression-stats').style.display = 'none';
+      if (lastActiveElement) lastActiveElement.focus();
+    }
+
+    async function handleHtmlFileSelect(file) {
+      if (!file) return;
+      document.getElementById('html-filename').textContent = file.name;
+      const rawText = await file.text();
+
+      // Check if dropped file is an existing launcher being imported/updated
+      const gamesMatch = rawText.match(/\/\*__GAMES_DATA_START__\*\/[\s\S]*?(?:const|let|var)\s+GAMES\s*=\s*(\[[\s\S]*?\]);\s*\/\*__GAMES_DATA_END__\*\//) ||
+                         rawText.match(/(?:const|let|var)\s+GAMES\s*=\s*(\[[\s\S]*?\]);/);
+      if (gamesMatch && gamesMatch[1]) {
+        try {
+          const importedGames = JSON.parse(gamesMatch[1]);
+          if (Array.isArray(importedGames) && importedGames.length > 0) {
+            let count = 0;
+            importedGames.forEach(ig => {
+              const norm = normalizeGame(ig);
+              if (norm && !allGames.some(existing => existing.id === norm.id || existing.title === norm.title)) {
+                allGames.push(norm);
+                count++;
+              }
+            });
+            renderGameBar();
+            if (!selectedGameId && allGames.length > 0) {
+              selectGame(allGames[0].id);
+            }
+            closeStudioSheet();
+            showSnackbar(`Imported ${count} games from launcher! Click 'Export File' to save your updated launcher.`);
+            return;
+          }
+        } catch (err) {
+          console.warn('Could not parse embedded games from launcher file:', err);
+        }
+      }
+
+      const rawKb = (rawText.length / 1024).toFixed(1);
+      showSnackbar('Compressing with native Gzip...');
+      pendingPayloadGzip = await compressGzip(rawText);
+      const gzipKb = ((pendingPayloadGzip.length * 0.75) / 1024).toFixed(1);
+
+      const statsEl = document.getElementById('compression-stats');
+      statsEl.style.display = 'block';
+      statsEl.textContent = `${rawKb} KB raw → ${gzipKb} KB Gzip (${Math.round((1 - gzipKb/rawKb)*100)}% ratio)`;
+
+      const titleInput = document.getElementById('new-game-title');
+      if (!titleInput.value) {
+        const inferred = file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
+        titleInput.value = inferred.charAt(0).toUpperCase() + inferred.slice(1);
+      }
+    }
+
+    function handleBannerFileSelect(file) {
+      if (!file) return;
+      document.getElementById('banner-filename').textContent = file.name;
+      const reader = new FileReader();
+      reader.onload = e => { pendingBannerData = e.target.result; };
+      reader.readAsDataURL(file);
+    }
+
+    function submitNewGame() {
+      const title = document.getElementById('new-game-title').value.trim();
+      const genre = document.getElementById('new-game-genre').value.trim() || 'Arcade';
+      const desc = document.getElementById('new-game-desc').value.trim();
+
+      if (!title) {
+        showSnackbar('Please specify a game title.');
+        document.getElementById('new-game-title').focus();
+        return;
+      }
+      if (!pendingPayloadGzip) {
+        showSnackbar('Please choose an HTML game file.');
+        return;
+      }
+
+      const newId = 'game_' + Date.now();
+      const approxKb = Math.round((pendingPayloadGzip.length * 0.75) / 1024);
+
+      const newGame = {
+        id: newId,
+        title: title,
+        genre: genre,
+        badgeTag: genre,
+        desc: desc || 'Fast-paced standalone offline game with instant zero-latency canvas rendering.',
+        size_kb: approxKb,
+        banner_base64: pendingBannerData || null,
+        payload_gzip: pendingPayloadGzip,
+        isFavorite: false,
+        addedAt: Date.now()
+      };
+
+      allGames.unshift(newGame);
+      selectedGameId = newId;
+
+      try {
+        const stored = JSON.parse(localStorage.getItem('game_vault_library') || '[]');
+        stored.unshift(newGame);
+        localStorage.setItem('game_vault_library', JSON.stringify(stored));
+      } catch (e) {}
+
+      closeStudioSheet();
+      renderApp();
+      showSnackbar(`Added "${title}" to your vault.`);
+      announceToScreenReader(`Added ${title} to your game vault.`);
+    }
+
+    function toggleFavorite() {
+      const game = allGames.find(g => g.id === selectedGameId);
+      if (!game) return;
+      game.isFavorite = !game.isFavorite;
+
+      try {
+        const stored = JSON.parse(localStorage.getItem('game_vault_library') || '[]');
+        const target = stored.find(g => g.id === game.id);
+        if (target) {
+          target.isFavorite = game.isFavorite;
+          localStorage.setItem('game_vault_library', JSON.stringify(stored));
+        }
+      } catch (e) {}
+
+      renderApp();
+      showSnackbar(game.isFavorite ? `Added ${game.title} to favorites` : `Removed ${game.title} from favorites`);
+    }
+
+    /* ========================================================
+       EXPORT ENGINE: FULL VAULT & SINGULAR GAMES
+       ======================================================== */
+    function exportVaultFile(customFilename) {
+      showSnackbar('Generating standalone launcher bundle...');
+      const serialized = JSON.stringify(allGames);
+      let docMarkup = document.documentElement.outerHTML;
+      const startTag = '/*__GAMES_DATA_START__*/';
+      const endTag = '/*__GAMES_DATA_END__*/';
+      const startIdx = docMarkup.indexOf(startTag);
+      const endIdx = docMarkup.indexOf(endTag);
+      let newSource;
+      if (startIdx !== -1 && endIdx !== -1) {
+        newSource = docMarkup.substring(0, startIdx + startTag.length) +
+                    '\n    const GAMES = ' + serialized + ';\n    ' +
+                    docMarkup.substring(endIdx);
+      } else {
+        const prefix = 'const GAMES = ';
+        const pIdx = docMarkup.indexOf(prefix);
+        if (pIdx !== -1) {
+          const semiIdx = docMarkup.indexOf(';\n', pIdx);
+          if (semiIdx !== -1) {
+            newSource = docMarkup.substring(0, pIdx + prefix.length) + serialized + docMarkup.substring(semiIdx);
+          } else {
+            newSource = docMarkup;
+          }
+        } else {
+          newSource = docMarkup;
+        }
+      }
+
+      const blob = new Blob(['<!DOCTYPE html>\n' + newSource], { type: 'text/html;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = customFilename || `game_launcher_${new Date().toISOString().slice(0, 10)}.html`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showSnackbar('Launcher HTML exported successfully!');
+    }
+
+    async function exportSingleGame(game) {
+      if (!game || !game.payload_gzip) {
+        showSnackbar('No game payload available to export.');
+        return;
+      }
+      showSnackbar(`Exporting "${game.title}"...`);
+      try {
+        const html = await decompressGzip(game.payload_gzip);
+        const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const safeTitle = (game.title || 'game').replace(/[^a-zA-Z0-9_\-]/g, '_').toLowerCase();
+        a.download = `${safeTitle}.html`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showSnackbar(`✓ Exported "${game.title}" as standalone HTML!`);
+      } catch (err) {
+        console.error('Export single game error:', err);
+        showSnackbar('Failed to export game: ' + err.message);
+      }
+    }
+
+    /* ========================================================
+       EASY LAUNCHER UPDATE & MIGRATION WITH SEMVER AUTO-UPDATE
+       ======================================================== */
+    function parseSemver(v) {
+      if (!v || v === 'unknown') return [0, 0, 0];
+      const cleaned = v.replace(/^v/, '').trim();
+      return cleaned.split('.').map(n => parseInt(n, 10) || 0);
+    }
+
+    function compareSemver(v1, v2) {
+      const p1 = parseSemver(v1);
+      const p2 = parseSemver(v2);
+      while (p1.length < 3) p1.push(0);
+      while (p2.length < 3) p2.push(0);
+      for (let i = 0; i < 3; i++) {
+        if (p1[i] > p2[i]) return 1;
+        if (p1[i] < p2[i]) return -1;
+      }
+      return 0;
+    }
+
+    function extractVersionFromText(text) {
+      try {
+        const j = JSON.parse(text);
+        if (j && j.version) return j.version;
+      } catch (_) {}
+      const metaM = text.match(/<meta\s+name=["']launcher-version["']\s+content=["']([^"']+)["']/i);
+      if (metaM && metaM[1]) return metaM[1];
+      const jsM = text.match(/const\s+LAUNCHER_VERSION\s*=\s*['"]([^'"]+)['"]/);
+      if (jsM && jsM[1]) return jsM[1];
+      return null;
+    }
+
+    function openUpdateModal() {
+      const modal = document.getElementById('update-modal');
+      const status = document.getElementById('update-status');
+      const verChip = document.getElementById('current-version-chip');
+      if (verChip) verChip.textContent = 'v' + LAUNCHER_VERSION;
+
+      const urlDisplay = document.getElementById('update-url-display');
+      if (urlDisplay) {
+        urlDisplay.textContent = (typeof AUTO_UPDATE_URL !== 'undefined' && AUTO_UPDATE_URL)
+          ? AUTO_UPDATE_URL
+          : 'No auto-update URL configured in file';
+      }
+
+      document.getElementById('update-drop-filename').textContent = 'Click to Choose Older Launcher (.html)';
+
+      if (status) {
+        status.style.display = 'none';
+        status.textContent = '';
+      }
+
+      modal.removeAttribute('hidden');
+      requestAnimationFrame(() => modal.classList.add('open'));
+    }
+
+    function closeUpdateModal() {
+      const modal = document.getElementById('update-modal');
+      modal.classList.remove('open');
+      setTimeout(() => {
+        modal.setAttribute('hidden', '');
+      }, 200);
+    }
+
+    async function handleLauncherUpdate(file) {
+      if (!file) return;
+      const statusEl = document.getElementById('update-status');
+      if (statusEl) {
+        statusEl.style.display = 'block';
+        statusEl.style.color = 'var(--md-sys-color-on-surface)';
+        statusEl.textContent = `Reading ${file.name}...`;
+      }
+      showSnackbar(`Reading ${file.name}...`);
+
+      try {
+        const rawText = await file.text();
+        const gamesMatch = rawText.match(/\/\*__GAMES_DATA_START__\*\/[\s\S]*?(?:const|let|var)\s+GAMES\s*=\s*(\[[\s\S]*?\]);\s*\/\*__GAMES_DATA_END__\*\//) ||
+                           rawText.match(/(?:const|let|var)\s+GAMES\s*=\s*(\[[\s\S]*?\]);/);
+        if (!gamesMatch || !gamesMatch[1]) {
+          throw new Error('No embedded games found in this launcher file.');
+        }
+
+        const importedGames = JSON.parse(gamesMatch[1]);
+        if (!Array.isArray(importedGames) || importedGames.length === 0) {
+          throw new Error('This launcher does not contain any games.');
+        }
+
+        let addedCount = 0;
+        importedGames.forEach(ig => {
+          const norm = normalizeGame(ig);
+          if (norm) {
+            const existingIdx = allGames.findIndex(e => e.id === norm.id || e.title === norm.title);
+            if (existingIdx === -1) {
+              allGames.push(norm);
+              addedCount++;
+            } else {
+              allGames[existingIdx] = norm;
+            }
+          }
+        });
+
+        try {
+          localStorage.setItem('game_vault_library', JSON.stringify(allGames));
+        } catch (_) {}
+
+        renderApp();
+        if (!selectedGameId && allGames.length > 0) {
+          selectGame(allGames[0].id);
+        }
+
+        if (statusEl) {
+          statusEl.textContent = `✓ Found ${importedGames.length} game(s) (${addedCount} new). Generating updated launcher...`;
+        }
+
+        setTimeout(() => {
+          exportVaultFile('launcher_updated.html');
+          showSnackbar(`✓ Successfully updated! Exported launcher with ${importedGames.length} games.`);
+          closeUpdateModal();
+        }, 500);
+
+      } catch (err) {
+        console.error('Update failure:', err);
+        if (statusEl) {
+          statusEl.style.display = 'block';
+          statusEl.style.color = 'var(--md-sys-color-error)';
+          statusEl.textContent = 'Update error: ' + err.message;
+        }
+        showSnackbar('Failed to update: ' + err.message);
+      }
+    }
+
+    async function checkAndAutoUpdate(urlStr, silent = false) {
+      const url = (urlStr || (typeof AUTO_UPDATE_URL !== 'undefined' ? AUTO_UPDATE_URL : '')).trim();
+      const statusEl = document.getElementById('update-status');
+
+      if (!url) {
+        if (!silent) showSnackbar('No auto-update URL configured in file.');
+        if (statusEl && !silent) {
+          statusEl.style.display = 'block';
+          statusEl.style.color = 'var(--md-sys-color-on-surface-variant)';
+          statusEl.textContent = 'Configure AUTO_UPDATE_URL in the HTML file or use pack_launcher.py --update-url.';
+        }
+        return;
+      }
+
+      let targetUrl = url;
+      if (targetUrl.startsWith('https://github.com/') && !targetUrl.includes('raw.githubusercontent.com')) {
+        let repoPath = targetUrl.replace('https://github.com/', '').replace(/\.git$/, '').replace(/\/$/, '');
+        const parts = repoPath.split('/');
+        if (parts.length === 2) {
+          targetUrl = `https://raw.githubusercontent.com/${parts[0]}/${parts[1]}/main/launcher.html`;
+        } else if (parts.length >= 4 && parts[2] === 'blob') {
+          targetUrl = targetUrl.replace('github.com/', 'raw.githubusercontent.com/').replace('/blob/', '/');
+        }
+      }
+
+      if (statusEl && !silent) {
+        statusEl.style.display = 'block';
+        statusEl.style.color = 'var(--md-sys-color-on-surface)';
+        statusEl.innerHTML = `Checking stream at <code>${targetUrl}</code>...`;
+      }
+      if (!silent) showSnackbar('Checking for updates...');
+
+      try {
+        const resp = await fetch(targetUrl);
+        if (!resp.ok) {
+          throw new Error(`Server returned HTTP ${resp.status} (${resp.statusText})`);
+        }
+        const text = await resp.text();
+        let remoteVer = extractVersionFromText(text);
+
+        // If user gave a version.json, resolve download_url and changelog
+        let downloadUrl = targetUrl;
+        let changelog = '';
+        try {
+          const j = JSON.parse(text);
+          if (j.version) remoteVer = j.version;
+          if (j.download_url) {
+            downloadUrl = new URL(j.download_url, targetUrl).href;
+          }
+          if (j.changelog) changelog = j.changelog;
+        } catch (_) {}
+
+        if (!remoteVer) {
+          throw new Error('Could not detect a launcher version in the remote file.');
+        }
+
+        const cmp = compareSemver(remoteVer, LAUNCHER_VERSION);
+        if (cmp > 0) {
+          const railDot = document.getElementById('rail-update-dot');
+          if (railDot) railDot.style.display = 'block';
+
+          // Zero-confirmation immediate download & upgrade!
+          if (statusEl) {
+            statusEl.style.display = 'block';
+            statusEl.innerHTML = `
+              <div style="color: var(--md-sys-color-primary); font-weight: 700;">
+                🚀 New version v${remoteVer} found! Merging games & downloading update...
+              </div>
+            `;
+          }
+          showSnackbar(`🚀 v${remoteVer} found! Auto-updating...`);
+
+          // Fetch the updated template/launcher and inject existing games + preserve update URL
+          let fetchUrl = downloadUrl;
+          if (fetchUrl.includes('github.com/') && fetchUrl.includes('/blob/')) {
+            fetchUrl = fetchUrl.replace('github.com/', 'raw.githubusercontent.com/').replace('/blob/', '/');
+          }
+
+          const dlResp = await fetch(fetchUrl);
+          if (!dlResp.ok) throw new Error(`HTTP ${dlResp.status} while downloading ${fetchUrl}`);
+          let rawHtml = await dlResp.text();
+
+          const startTag = '/*__GAMES_DATA_START__*/';
+          const endTag = '/*__GAMES_DATA_END__*/';
+          const sIdx = rawHtml.indexOf(startTag);
+          const eIdx = rawHtml.indexOf(endTag);
+          let finalHtml;
+
+          if (rawHtml.includes('__GAMES_DATA_PLACEHOLDER__')) {
+            finalHtml = rawHtml.replace('__GAMES_DATA_PLACEHOLDER__', JSON.stringify(allGames));
+          } else if (sIdx !== -1 && eIdx !== -1) {
+            finalHtml = rawHtml.substring(0, sIdx + startTag.length) +
+                        '\n    const GAMES = ' + JSON.stringify(allGames) + ';\n    ' +
+                        rawHtml.substring(eIdx);
+          } else {
+            exportVaultFile(`launcher_v${remoteVer}.html`);
+            showSnackbar(`✓ Updated to v${remoteVer}! File exported.`);
+            setTimeout(() => closeUpdateModal(), 800);
+            return;
+          }
+
+          // Ensure AUTO_UPDATE_URL is preserved in the newly downloaded file
+          if (typeof AUTO_UPDATE_URL !== 'undefined' && AUTO_UPDATE_URL) {
+            finalHtml = finalHtml.replace(/const\s+AUTO_UPDATE_URL\s*=\s*['"][^'"]*['"]/, `const AUTO_UPDATE_URL = '${AUTO_UPDATE_URL}'`);
+          }
+
+          const blob = new Blob([finalHtml], { type: 'text/html;charset=utf-8' });
+          const dlBlobUrl = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = dlBlobUrl;
+          a.download = `launcher_v${remoteVer}.html`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(dlBlobUrl);
+
+          if (statusEl) {
+            statusEl.innerHTML = `
+              <div style="color: var(--md-sys-color-primary); font-weight: 700;">
+                ✓ Successfully upgraded to v${remoteVer}! Preserved ${allGames.length} game(s).
+              </div>
+            `;
+          }
+          showSnackbar(`✓ Successfully updated to v${remoteVer}! Launcher downloaded.`);
+          setTimeout(() => closeUpdateModal(), 1200);
+
+        } else {
+          const railDot = document.getElementById('rail-update-dot');
+          if (railDot) railDot.style.display = 'none';
+
+          if (statusEl && !silent) {
+            statusEl.style.display = 'block';
+            statusEl.innerHTML = `
+              <div style="color: var(--md-sys-color-primary); font-weight: 600;">
+                ✓ You have the latest version (v${LAUNCHER_VERSION})
+              </div>
+            `;
+          }
+          if (!silent) showSnackbar(`✓ Launcher is up to date (v${LAUNCHER_VERSION})`);
+        }
+      } catch (err) {
+        console.error('Update check failed:', err);
+        if (statusEl && !silent) {
+          statusEl.style.display = 'block';
+          const isCors = (err.message && err.message.toLowerCase().includes('failed to fetch')) || err.name === 'TypeError';
+          statusEl.innerHTML = isCors
+            ? `<strong>Browser fetch blocked (CORS restriction):</strong><br/>Run updater in terminal to bypass browser limits:<br/><code style="display:inline-block;margin-top:6px;padding:4px 8px;background:rgba(0,0,0,0.4);border-radius:4px;user-select:all;">python3 update.py "${targetUrl}"</code>`
+            : `<span style="color: var(--md-sys-color-error)">Check error: ${err.message}</span>`;
+        }
+        if (!silent) showSnackbar('Update check failed: ' + err.message);
+      }
+    }
+
+
+    /* ========================================================
+       FULLSCREEN MANAGEMENT (PRESERVES GAME KEYBOARD FOCUS)
+       ======================================================== */
+    function toggleFullscreen() {
+      const runner = document.getElementById('runner-overlay');
+      const isGameActive = runner && runner.classList.contains('active');
+
+      if (!document.fullscreenElement) {
+        if (document.documentElement.requestFullscreen) {
+          document.documentElement.requestFullscreen().then(() => {
+            if (isGameActive) {
+              focusGameFrame();
+              setTimeout(focusGameFrame, 80);
+              setTimeout(focusGameFrame, 250);
+            }
+          }).catch(err => {
+            console.warn('Fullscreen request rejected:', err);
+          });
+        }
+      } else {
+        if (document.exitFullscreen) {
+          document.exitFullscreen().then(() => {
+            if (isGameActive) {
+              focusGameFrame();
+              setTimeout(focusGameFrame, 80);
+              setTimeout(focusGameFrame, 250);
+            }
+          }).catch(err => {
+            console.warn('Exit fullscreen rejected:', err);
+          });
+        }
+      }
+    }
+
+    function updateFullscreenUI() {
+      const isFs = !!document.fullscreenElement;
+      const expandPath = 'M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z';
+      const exitPath = 'M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z';
+
+      const railFsIcon = document.getElementById('rail-fs-icon');
+      if (railFsIcon && railFsIcon.querySelector('path')) {
+        railFsIcon.querySelector('path').setAttribute('d', isFs ? exitPath : expandPath);
+      }
+
+      const runnerFsIcon = document.getElementById('runner-fullscreen-icon');
+      const runnerFsLabel = document.getElementById('runner-fullscreen-label');
+      if (runnerFsIcon && runnerFsIcon.querySelector('path')) {
+        runnerFsIcon.querySelector('path').setAttribute('d', isFs ? exitPath : expandPath);
+      }
+      if (runnerFsLabel) {
+        runnerFsLabel.textContent = isFs ? 'Exit Full' : 'Fullscreen';
+      }
+    }
+
+    /* ========================================================
+       ACCESSIBILITY & TRAPPING
+       ======================================================== */
+    function announceToScreenReader(msg) {
+      document.getElementById('a11y-announcer').textContent = msg;
+    }
+
+    function showSnackbar(msg) {
+      const tray = document.getElementById('m3-snackbar-tray');
+      const snack = document.createElement('div');
+      snack.className = 'm3-snackbar';
+      snack.textContent = msg;
+      tray.appendChild(snack);
+      requestAnimationFrame(() => snack.classList.add('show'));
+      setTimeout(() => {
+        snack.classList.remove('show');
+        setTimeout(() => snack.remove(), 150);
+      }, 2500);
+    }
+
+    function trapFocus(modalEl) {
+      const focusables = modalEl.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+      if (focusables.length === 0) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      modalEl.addEventListener('keydown', e => {
+        if (e.key === 'Tab') {
+          if (e.shiftKey && document.activeElement === first) {
+            e.preventDefault();
+            last.focus();
+          } else if (!e.shiftKey && document.activeElement === last) {
+            e.preventDefault();
+            first.focus();
+          }
+        }
+      });
+    }
+
+    function generateDefaultThumb(title) {
+      const canvas = document.createElement('canvas');
+      canvas.width = 88;
+      canvas.height = 88;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#1d2024';
+      ctx.fillRect(0, 0, 88, 88);
+      ctx.fillStyle = '#85d796';
+      ctx.font = 'bold 36px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText((title || 'G').charAt(0).toUpperCase(), 44, 44);
+      return canvas.toDataURL();
+    }
+
+    /* ========================================================
+       EVENT LISTENERS
+       ======================================================== */
+    function setupEventListeners() {
+      // Play, Favorite & Export Single Game
+      document.getElementById('btn-hero-play').addEventListener('click', () => {
+        const game = allGames.find(g => g.id === selectedGameId);
+        if (game) launchGame(game);
+        else openStudioSheet();
+      });
+      document.getElementById('btn-hero-fav').addEventListener('click', toggleFavorite);
+
+      const heroExportBtn = document.getElementById('btn-hero-export-game');
+      if (heroExportBtn) {
+        heroExportBtn.addEventListener('click', () => {
+          const game = allGames.find(g => g.id === selectedGameId);
+          if (game) exportSingleGame(game);
+          else showSnackbar('No game selected to export.');
+        });
+      }
+
+      // Add Game in Game Bar & Navigation Rail
+      document.getElementById('btn-add-game-bar').addEventListener('click', openStudioSheet);
+      document.getElementById('rail-add-btn').addEventListener('click', openStudioSheet);
+
+      // Update Launcher in Navigation Rail & Game Bar
+      const railUpdateBtn = document.getElementById('rail-update-btn');
+      if (railUpdateBtn) railUpdateBtn.addEventListener('click', openUpdateModal);
+
+      const barUpdateBtn = document.getElementById('btn-update-bar');
+      if (barUpdateBtn) barUpdateBtn.addEventListener('click', openUpdateModal);
+
+      // Export Vault in Navigation Rail & Game Bar
+      const railExportBtn = document.getElementById('rail-export-btn');
+      if (railExportBtn) railExportBtn.addEventListener('click', () => exportVaultFile());
+
+      const barExportBtn = document.getElementById('btn-export-bar');
+      if (barExportBtn) barExportBtn.addEventListener('click', () => exportVaultFile());
+
+      // Update Modal Controls
+      const closeUpdateBtn = document.getElementById('close-update-btn');
+      if (closeUpdateBtn) closeUpdateBtn.addEventListener('click', closeUpdateModal);
+
+      const cancelUpdateBtn = document.getElementById('cancel-update-btn');
+      if (cancelUpdateBtn) cancelUpdateBtn.addEventListener('click', closeUpdateModal);
+
+      const updateDrop = document.getElementById('update-dropzone');
+      const updateFile = document.getElementById('update-file-input');
+      if (updateDrop && updateFile) {
+        updateDrop.addEventListener('click', () => updateFile.click());
+        updateFile.addEventListener('change', e => {
+          if (e.target.files && e.target.files[0]) {
+            handleLauncherUpdate(e.target.files[0]);
+          }
+        });
+        setupDragDrop(updateDrop, f => handleLauncherUpdate(f));
+      }
+
+      const fetchUpdateUrlBtn = document.getElementById('btn-fetch-update-url');
+      if (fetchUpdateUrlBtn) {
+        fetchUpdateUrlBtn.addEventListener('click', () => {
+          checkAndAutoUpdate(typeof AUTO_UPDATE_URL !== 'undefined' ? AUTO_UPDATE_URL : '', false);
+        });
+      }
+
+      // M3 Side Sheet Events
+      document.getElementById('close-studio-btn').addEventListener('click', closeStudioSheet);
+      document.getElementById('cancel-studio-btn').addEventListener('click', closeStudioSheet);
+      document.getElementById('submit-game-btn').addEventListener('click', submitNewGame);
+
+      // Runner Exit & Controls
+      document.getElementById('runner-close-btn').addEventListener('click', closeGameRunner);
+
+      const runner = document.getElementById('runner-overlay');
+      if (runner) {
+        runner.addEventListener('pointerdown', e => {
+          if (!e.target.closest('#runner-top-bar')) {
+            focusGameFrame();
+          }
+        });
+      }
+
+      const hoverZone = document.getElementById('runner-hover-zone');
+      if (hoverZone) {
+        hoverZone.addEventListener('mouseenter', () => showRunnerControls(3000));
+        hoverZone.addEventListener('mousemove', () => showRunnerControls(3000));
+      }
+
+      const runnerBar = document.getElementById('runner-top-bar');
+      if (runnerBar) {
+        runnerBar.addEventListener('mouseenter', () => {
+          clearTimeout(runnerBarTimer);
+          runnerBar.classList.add('visible');
+        });
+        runnerBar.addEventListener('mouseleave', () => {
+          showRunnerControls(1200);
+        });
+      }
+
+      // Dropzone Wiring
+      const htmlDrop = document.getElementById('html-dropzone');
+      const htmlFile = document.getElementById('html-file-input');
+      htmlDrop.addEventListener('click', () => htmlFile.click());
+      htmlFile.addEventListener('change', e => handleHtmlFileSelect(e.target.files[0]));
+      setupDragDrop(htmlDrop, f => handleHtmlFileSelect(f));
+
+      const bannerDrop = document.getElementById('banner-dropzone');
+      const bannerFile = document.getElementById('banner-file-input');
+      bannerDrop.addEventListener('click', () => bannerFile.click());
+      bannerFile.addEventListener('change', e => handleBannerFileSelect(e.target.files[0]));
+      setupDragDrop(bannerDrop, f => handleBannerFileSelect(f));
+
+      // Fullscreen Toggles (Refocus game iframe and blur button)
+      const railFsBtn = document.getElementById('rail-fs-btn');
+      if (railFsBtn) {
+        railFsBtn.addEventListener('click', () => {
+          toggleFullscreen();
+          railFsBtn.blur();
+        });
+      }
+
+      const runnerFsBtn = document.getElementById('runner-fullscreen-btn');
+      if (runnerFsBtn) {
+        runnerFsBtn.addEventListener('click', e => {
+          e.preventDefault();
+          e.stopPropagation();
+          toggleFullscreen();
+          runnerFsBtn.blur();
+          setTimeout(focusGameFrame, 60);
+          setTimeout(focusGameFrame, 200);
+        });
+      }
+
+      document.addEventListener('fullscreenchange', () => {
+        updateFullscreenUI();
+        const r = document.getElementById('runner-overlay');
+        if (r && r.classList.contains('active')) {
+          focusGameFrame();
+          setTimeout(focusGameFrame, 60);
+          setTimeout(focusGameFrame, 200);
+          setTimeout(focusGameFrame, 400);
+        }
+      });
+
+      // Keydown Shortcuts & Game Keyboard Forwarding
+      window.addEventListener('keydown', e => {
+        const r = document.getElementById('runner-overlay');
+        const isGameActive = r && r.classList.contains('active');
+
+        // Forward keys to game runner iframe if outer window received focus
+        if (isGameActive) {
+          const frame = document.getElementById('game-frame');
+          if (frame) {
+            focusGameFrame();
+            if (e.target !== frame) {
+              try {
+                if (frame.contentWindow && frame.contentWindow.document) {
+                  const evt = new KeyboardEvent('keydown', {
+                    key: e.key,
+                    code: e.code,
+                    keyCode: e.keyCode,
+                    which: e.which,
+                    charCode: e.charCode,
+                    bubbles: true,
+                    cancelable: true,
+                    composed: true,
+                    ctrlKey: e.ctrlKey,
+                    shiftKey: e.shiftKey,
+                    altKey: e.altKey,
+                    metaKey: e.metaKey,
+                    repeat: e.repeat
+                  });
+                  frame.contentWindow.dispatchEvent(evt);
+                  frame.contentWindow.document.dispatchEvent(evt);
+                }
+              } catch (_) {}
+            }
+          }
+          return;
+        }
+
+        if (e.key === 'Escape') {
+          const updateModal = document.getElementById('update-modal');
+          if (updateModal && !updateModal.hasAttribute('hidden')) {
+            closeUpdateModal();
+            return;
+          }
+          const sheet = document.getElementById('studio-sheet');
+          if (sheet && sheet.classList.contains('open')) {
+            closeStudioSheet();
+            return;
+          }
+        }
+
+        const tag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
+        if (tag === 'input' || tag === 'textarea') return;
+
+        if (e.key === ' ' && !document.getElementById('runner-overlay').classList.contains('active')) {
+          e.preventDefault();
+          const game = allGames.find(g => g.id === selectedGameId);
+          if (game) launchGame(game);
+        }
+
+        if ((e.key === 'f' || e.key === 'F') && !e.ctrlKey && !e.altKey && !e.metaKey) {
+          e.preventDefault();
+          toggleFullscreen();
+        }
+
+        // Navigate Game Bar with Arrow Keys
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+          if (allGames.length > 0) {
+            e.preventDefault();
+            const currIdx = allGames.findIndex(g => g.id === selectedGameId);
+            let nextIdx = e.key === 'ArrowDown' ? currIdx + 1 : currIdx - 1;
+            if (nextIdx >= allGames.length) nextIdx = 0;
+            if (nextIdx < 0) nextIdx = allGames.length - 1;
+            selectGame(allGames[nextIdx].id);
+          }
+        }
+      });
+
+      // Keyup forwarding for game runner
+      window.addEventListener('keyup', e => {
+        const r = document.getElementById('runner-overlay');
+        const isGameActive = r && r.classList.contains('active');
+        if (isGameActive) {
+          const frame = document.getElementById('game-frame');
+          if (frame && e.target !== frame) {
+            focusGameFrame();
+            try {
+              if (frame.contentWindow && frame.contentWindow.document) {
+                const evt = new KeyboardEvent('keyup', {
+                  key: e.key,
+                  code: e.code,
+                  keyCode: e.keyCode,
+                  which: e.which,
+                  bubbles: true,
+                  cancelable: true,
+                  composed: true,
+                  ctrlKey: e.ctrlKey,
+                  shiftKey: e.shiftKey,
+                  altKey: e.altKey,
+                  metaKey: e.metaKey
+                });
+                frame.contentWindow.dispatchEvent(evt);
+                frame.contentWindow.document.dispatchEvent(evt);
+              }
+            } catch (_) {}
+          }
+        }
+      });
+
+      // Window-level Drag & Drop support with visual overlay
+      const dropOverlay = document.getElementById('global-drop-overlay');
+      let dragCounter = 0;
+
+      window.addEventListener('dragenter', e => {
+        e.preventDefault();
+        dragCounter++;
+        if (dropOverlay) dropOverlay.classList.add('active');
+      });
+
+      window.addEventListener('dragleave', e => {
+        e.preventDefault();
+        dragCounter--;
+        if (dragCounter <= 0) {
+          dragCounter = 0;
+          if (dropOverlay) dropOverlay.classList.remove('active');
+        }
+      });
+
+      window.addEventListener('dragover', e => { e.preventDefault(); });
+
+      window.addEventListener('drop', async e => {
+        e.preventDefault();
+        dragCounter = 0;
+        if (dropOverlay) dropOverlay.classList.remove('active');
+        if (e.target.closest('.m3-dropzone')) return;
+
+        if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+          const file = e.dataTransfer.files[0];
+          if (file.name.endsWith('.html') || file.name.endsWith('.htm')) {
+            const previewText = await file.text();
+            if (previewText.includes('GAMES') && (previewText.includes('__GAMES_DATA_START__') || previewText.includes('const GAMES =') || previewText.includes('let GAMES ='))) {
+              handleLauncherUpdate(file);
+            } else {
+              openStudioSheet();
+              handleHtmlFileSelect(file);
+            }
+          }
+        }
+      });
+    }
+
+    function setupDragDrop(el, callback) {
+      el.addEventListener('dragover', e => { e.preventDefault(); el.classList.add('dragover'); });
+      el.addEventListener('dragleave', () => el.classList.remove('dragover'));
+      el.addEventListener('drop', e => {
+        e.preventDefault();
+        el.classList.remove('dragover');
+        if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+          callback(e.dataTransfer.files[0]);
+        }
+      });
+    }
+  </script>
+
+  <!-- Global Drag-and-Drop Visual Overlay -->
+  <div class="global-drop-overlay" id="global-drop-overlay">
+    <svg viewBox="0 0 24 24" width="48" height="48" fill="var(--md-sys-color-primary)"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/></svg>
+    <div style="font-size: 1.25rem; font-weight: 800; letter-spacing: -0.01em;">Drop File Here</div>
+    <div style="font-size: 0.85rem; color: var(--md-sys-color-on-surface-variant);">Drop older launcher (.html) to update, or single HTML game to add to vault</div>
+  </div>
+</body>
+</html>
