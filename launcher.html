@@ -1339,6 +1339,7 @@
         card.dataset.gameId = game.id;
         card.tabIndex = 0;
         card.setAttribute('role', 'listitem');
+        card.setAttribute('aria-selected', game.id === selectedGameId ? 'true' : 'false');
         card.setAttribute('aria-label', `Select ${game.title}`);
 
         const thumb = document.createElement('img');
