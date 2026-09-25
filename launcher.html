@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <meta name="launcher-version" content="1.0.3" />
+  <meta name="launcher-version" content="1.0.4" />
   <title>Game Launcher // Offline Vault</title>
   <style>
     /* ========================================================
@@ -232,6 +232,31 @@
       background: rgba(255, 255, 255, 0.2);
       color: #ffffff;
       transform: scale(1.12);
+    }
+    .m3-card-play-btn {
+      background: var(--md-sys-color-primary) !important;
+      color: var(--md-sys-color-on-primary) !important;
+      border: none !important;
+      opacity: 0.9;
+    }
+    .m3-card-play-btn svg {
+      width: 13px;
+      height: 13px;
+      fill: var(--md-sys-color-on-primary) !important;
+      margin-left: 1px;
+    }
+    .m3-game-card:hover .m3-card-play-btn,
+    .m3-card-play-btn:focus,
+    .m3-game-card.active .m3-card-play-btn {
+      opacity: 1;
+    }
+    .m3-card-play-btn:hover {
+      background: #ffffff !important;
+      color: #000000 !important;
+      transform: scale(1.15);
+    }
+    .m3-card-play-btn:hover svg {
+      fill: #000000 !important;
     }
     .m3-card-action-btn svg { width: 13px; height: 13px; fill: currentColor; }
 
@@ -906,15 +931,36 @@
         <textarea class="m3-field-textarea" id="new-game-desc" rows="3" placeholder="Brief gameplay rules or story..."></textarea>
       </div>
 
-      <!-- HTML Game Payload Dropzone -->
+      <!-- HTML Game Payload / Retro ROM Dropzone -->
       <div class="m3-field-group" style="margin-top: 14px;">
-        <label class="m3-field-label">Single-file HTML Game *</label>
-        <div class="m3-dropzone" id="html-dropzone" tabindex="0" role="button" aria-label="Drop single HTML game file here or click to browse">
+        <label class="m3-field-label">Single-file HTML Game or Retro ROM *</label>
+        <div class="m3-dropzone" id="html-dropzone" tabindex="0" role="button" aria-label="Drop single HTML game or retro ROM file here or click to browse">
           <svg viewBox="0 0 24 24" width="26" height="26" fill="var(--md-sys-color-primary)" aria-hidden="true"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
-          <div id="html-filename" style="font-size: 0.8rem; color: var(--md-sys-color-on-surface-variant); margin-top: 6px;">Click or drag .html game file here</div>
-          <input type="file" id="html-file-input" accept=".html,.htm" style="display: none;" />
+          <div id="html-filename" style="font-size: 0.8rem; color: var(--md-sys-color-on-surface-variant); margin-top: 6px;">Click or drag HTML game (.html) or retro ROM (.gba, .nes, .snes, .md, .n64, .nds, etc.) here</div>
+          <input type="file" id="html-file-input" accept=".html,.htm,.nes,.snes,.smc,.sfc,.gba,.gbc,.gb,.md,.gen,.smd,.bin,.z64,.n64,.v64,.nds,.pce,.gg,.sms,.a26,.zip" style="display: none;" />
         </div>
         <div id="compression-stats" style="display: none; font-size: 0.72rem; color: var(--md-sys-color-primary); margin-top: 4px;" class="tabular-nums"></div>
+      </div>
+
+      <!-- EmulatorJS Retro Core Selector (Visible when ROM is selected) -->
+      <div class="m3-field-group" id="emulator-core-group" style="display: none; margin-top: 14px;">
+        <label class="m3-field-label" for="emulator-core-select">Retro System / Core *</label>
+        <select class="m3-field-input" id="emulator-core-select" style="cursor: pointer;">
+          <option value="gba">Nintendo - Game Boy Advance (GBA)</option>
+          <option value="gb">Nintendo - Game Boy / Color (GB/GBC)</option>
+          <option value="nes">Nintendo - Entertainment System (NES)</option>
+          <option value="snes">Nintendo - Super NES (SNES)</option>
+          <option value="n64">Nintendo - Nintendo 64 (N64)</option>
+          <option value="nds">Nintendo - Nintendo DS (NDS)</option>
+          <option value="segaMD">Sega - Genesis / Mega Drive (MD)</option>
+          <option value="segaMS">Sega - Master System (SMS)</option>
+          <option value="segaGG">Sega - Game Gear (GG)</option>
+          <option value="psx">Sony - PlayStation (PSX)</option>
+          <option value="arcade">Arcade (FBNeo / MAME)</option>
+          <option value="pce">NEC - PC Engine / TurboGrafx-16</option>
+          <option value="atari2600">Atari - 2600</option>
+        </select>
+        <div style="font-size: 0.72rem; color: var(--md-sys-color-primary); margin-top: 4px;">Powered by EmulatorJS engine. Runs directly in launcher viewport.</div>
       </div>
 
       <!-- Optional Banner -->
@@ -967,7 +1013,7 @@
     const GAMES = [];
     /*__GAMES_DATA_END__*/
 
-    const LAUNCHER_VERSION = '1.0.3';
+    const LAUNCHER_VERSION = '1.0.4';
     const AUTO_UPDATE_URL = 'https://raw.githubusercontent.com/lillythenova/meowmeow/main/launcher.html';
 
     /* Application State */
@@ -975,8 +1021,168 @@
     let selectedGameId = null;
     let pendingPayloadGzip = null;
     let pendingBannerData = null;
+    let pendingRomData = null;
     let lastActiveElement = null;
     let fpsInterval = null;
+
+    /* EmulatorJS Retro Systems & Core Mapping */
+    const ROM_SYSTEMS = {
+      'gba': { core: 'gba', name: 'Nintendo - Game Boy Advance', tag: 'Game Boy Advance' },
+      'gb': { core: 'gb', name: 'Nintendo - Game Boy', tag: 'Game Boy' },
+      'gbc': { core: 'gb', name: 'Nintendo - Game Boy Color', tag: 'Game Boy Color' },
+      'nes': { core: 'nes', name: 'Nintendo - NES', tag: 'NES' },
+      'fds': { core: 'nes', name: 'Nintendo - Famicom Disk System', tag: 'NES' },
+      'snes': { core: 'snes', name: 'Nintendo - Super Nintendo', tag: 'Super Nintendo' },
+      'smc': { core: 'snes', name: 'Nintendo - Super Nintendo', tag: 'Super Nintendo' },
+      'sfc': { core: 'snes', name: 'Nintendo - Super Famicom', tag: 'Super Nintendo' },
+      'z64': { core: 'n64', name: 'Nintendo - Nintendo 64', tag: 'Nintendo 64' },
+      'n64': { core: 'n64', name: 'Nintendo - Nintendo 64', tag: 'Nintendo 64' },
+      'v64': { core: 'n64', name: 'Nintendo - Nintendo 64', tag: 'Nintendo 64' },
+      'nds': { core: 'nds', name: 'Nintendo - Nintendo DS', tag: 'Nintendo DS' },
+      'md': { core: 'segaMD', name: 'Sega - Genesis / Mega Drive', tag: 'Sega Genesis' },
+      'gen': { core: 'segaMD', name: 'Sega - Genesis / Mega Drive', tag: 'Sega Genesis' },
+      'smd': { core: 'segaMD', name: 'Sega - Genesis / Mega Drive', tag: 'Sega Genesis' },
+      'bin': { core: 'segaMD', name: 'Sega - Genesis / Mega Drive', tag: 'Sega Genesis' },
+      'sms': { core: 'segaMS', name: 'Sega - Master System', tag: 'Master System' },
+      'gg': { core: 'segaGG', name: 'Sega - Game Gear', tag: 'Game Gear' },
+      'iso': { core: 'psx', name: 'Sony - PlayStation', tag: 'PlayStation' },
+      'pbp': { core: 'psx', name: 'Sony - PlayStation', tag: 'PlayStation' },
+      'cue': { core: 'psx', name: 'Sony - PlayStation', tag: 'PlayStation' },
+      'chd': { core: 'psx', name: 'Sony - PlayStation', tag: 'PlayStation' },
+      'pce': { core: 'pce', name: 'NEC - PC Engine', tag: 'PC Engine' },
+      'a26': { core: 'atari2600', name: 'Atari - 2600', tag: 'Atari 2600' },
+      'zip': { core: 'arcade', name: 'Arcade (FBNeo / MAME)', tag: 'Arcade' }
+    };
+
+    function buildEmulatorJsHtml(romBase64, core, gameTitle) {
+      const safeTitle = (gameTitle || 'Retro Game').replace(/[<>&"]/g, '');
+      return '<!DOCTYPE html>\\n' +
+        '<html lang="en">\\n' +
+        '<head>\\n' +
+        '  <meta charset="utf-8">\\n' +
+        '  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">\\n' +
+        '  <title>' + safeTitle + '</title>\\n' +
+        '  <style>\\n' +
+        '    * { margin: 0; padding: 0; box-sizing: border-box; }\\n' +
+        '    html, body {\\n' +
+        '      width: 100vw;\\n' +
+        '      height: 100vh;\\n' +
+        '      overflow: hidden;\\n' +
+        '      background-color: #0c0e13;\\n' +
+        '      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", sans-serif;\\n' +
+        '    }\\n' +
+        '    #game-container {\\n' +
+        '      position: absolute;\\n' +
+        '      inset: 0;\\n' +
+        '      width: 100%;\\n' +
+        '      height: 100%;\\n' +
+        '      display: flex;\\n' +
+        '      align-items: center;\\n' +
+        '      justify-content: center;\\n' +
+        '      background-color: #0c0e13;\\n' +
+        '    }\\n' +
+        '    #game {\\n' +
+        '      width: 100%;\\n' +
+        '      height: 100%;\\n' +
+        '    }\\n' +
+        '    #loader-screen {\\n' +
+        '      position: absolute;\\n' +
+        '      inset: 0;\\n' +
+        '      display: flex;\\n' +
+        '      flex-direction: column;\\n' +
+        '      align-items: center;\\n' +
+        '      justify-content: center;\\n' +
+        '      background: #0c0e13;\\n' +
+        '      color: #e2e2e9;\\n' +
+        '      z-index: 9999;\\n' +
+        '      transition: opacity 0.4s ease;\\n' +
+        '      pointer-events: none;\\n' +
+        '    }\\n' +
+        '    #loader-screen.fade-out {\\n' +
+        '      opacity: 0;\\n' +
+        '    }\\n' +
+        '    .spinner {\\n' +
+        '      width: 44px;\\n' +
+        '      height: 44px;\\n' +
+        '      border: 3px solid rgba(208, 188, 255, 0.2);\\n' +
+        '      border-top-color: #d0bcff;\\n' +
+        '      border-radius: 50%;\\n' +
+        '      animation: spin 0.8s linear infinite;\\n' +
+        '      margin-bottom: 16px;\\n' +
+        '    }\\n' +
+        '    @keyframes spin {\\n' +
+        '      to { transform: rotate(360deg); }\\n' +
+        '    }\\n' +
+        '    .loader-title {\\n' +
+        '      font-size: 1.15rem;\\n' +
+        '      font-weight: 700;\\n' +
+        '      letter-spacing: -0.01em;\\n' +
+        '    }\\n' +
+        '    .loader-sub {\\n' +
+        '      font-size: 0.8rem;\\n' +
+        '      color: #938f99;\\n' +
+        '      margin-top: 6px;\\n' +
+        '    }\\n' +
+        '  </style>\\n' +
+        '</head>\\n' +
+        '<body>\\n' +
+        '  <div id="loader-screen">\\n' +
+        '    <div class="spinner"></div>\\n' +
+        '    <div class="loader-title">' + safeTitle + '</div>\\n' +
+        '    <div class="loader-sub">Loading retro emulator core...</div>\\n' +
+        '  </div>\\n' +
+        '  <div id="game-container">\\n' +
+        '    <div id="game"></div>\\n' +
+        '  </div>\\n' +
+        '  <script>\\n' +
+        '    (function() {\\n' +
+        '      const ROM_B64 = "' + romBase64 + '";\\n' +
+        '      const CORE = "' + core + '";\\n' +
+        '      const TITLE = ' + JSON.stringify(safeTitle) + ';\\n' +
+        '\\n' +
+        '      function b64ToBlobUrl(b64) {\\n' +
+        '        const bin = atob(b64);\\n' +
+        '        const len = bin.length;\\n' +
+        '        const bytes = new Uint8Array(len);\\n' +
+        '        for (let i = 0; i < len; i++) {\\n' +
+        '          bytes[i] = bin.charCodeAt(i);\\n' +
+        '        }\\n' +
+        '        const blob = new Blob([bytes], { type: "application/octet-stream" });\\n' +
+        '        return URL.createObjectURL(blob);\\n' +
+        '      }\\n' +
+        '\\n' +
+        '      const romBlobUrl = b64ToBlobUrl(ROM_B64);\\n' +
+        '\\n' +
+        '      window.EJS_player = "#game";\\n' +
+        '      window.EJS_core = CORE;\\n' +
+        '      window.EJS_gameName = TITLE;\\n' +
+        '      window.EJS_color = "#d0bcff";\\n' +
+        '      window.EJS_backgroundColor = "#0c0e13";\\n' +
+        '      window.EJS_startOnLoaded = true;\\n' +
+        '      window.EJS_pathtodata = "https://cdn.emulatorjs.org/stable/data/";\\n' +
+        '      window.EJS_gameUrl = romBlobUrl;\\n' +
+        '\\n' +
+        '      window.EJS_onGameStart = function() {\\n' +
+        '        const ls = document.getElementById("loader-screen");\\n' +
+        '        if (ls) {\\n' +
+        '          ls.classList.add("fade-out");\\n' +
+        '          setTimeout(() => ls.remove(), 450);\\n' +
+        '        }\\n' +
+        '      };\\n' +
+        '\\n' +
+        '      setTimeout(() => {\\n' +
+        '        const ls = document.getElementById("loader-screen");\\n' +
+        '        if (ls && !ls.classList.contains("fade-out")) {\\n' +
+        '          ls.classList.add("fade-out");\\n' +
+        '          setTimeout(() => ls.remove(), 450);\\n' +
+        '        }\\n' +
+        '      }, 6000);\\n' +
+        '    })();\\n' +
+        '  <' + '/script>\\n' +
+        '  <script src="https://cdn.emulatorjs.org/stable/data/loader.js"><' + '/script>\\n' +
+        '</body>\\n' +
+        '</html>';
+    }
 
     function normalizeGame(g) {
       if (!g) return null;
@@ -987,7 +1193,7 @@
         badgeTag: g.badgeTag || (Array.isArray(g.tags) ? g.tags[0] : 'Offline Ready'),
         desc: g.desc || g.description || 'Fast-paced standalone offline game with instant zero-latency canvas rendering.',
         banner_base64: g.banner_base64 || g.banner_image || null,
-        payload_gzip: g.payload_gzip || g.compressed_data || null,
+        payload_gzip: g.payload_gzip || g.compressed_data || g.payload || null,
         size_kb: g.size_kb || (g.compressed_size ? Math.round(g.compressed_size / 1024) : 24),
         isFavorite: !!g.isFavorite,
         addedAt: g.addedAt || Date.now()
@@ -1035,30 +1241,44 @@
        GZIP DECOMPRESSION & COMPRESSION
        ======================================================== */
     async function decompressGzip(base64Str) {
-      const binStr = atob(base64Str);
-      const bytes = new Uint8Array(binStr.length);
-      for (let i = 0; i < binStr.length; i++) bytes[i] = binStr.charCodeAt(i);
-
-      const ds = new DecompressionStream('gzip');
-      const writer = ds.writable.getWriter();
-      writer.write(bytes);
-      writer.close();
-
-      const reader = ds.readable.getReader();
-      const chunks = [];
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        chunks.push(value);
+      if (!base64Str) return '';
+      if (base64Str.trim().startsWith('<') || base64Str.trim().startsWith('<!')) {
+        return base64Str;
       }
-      const totalLen = chunks.reduce((acc, c) => acc + c.length, 0);
-      const res = new Uint8Array(totalLen);
-      let offset = 0;
-      for (let chunk of chunks) {
-        res.set(chunk, offset);
-        offset += chunk.length;
+      try {
+        const binStr = atob(base64Str);
+        const bytes = new Uint8Array(binStr.length);
+        for (let i = 0; i < binStr.length; i++) bytes[i] = binStr.charCodeAt(i);
+
+        // Check for gzip magic header (0x1f, 0x8b)
+        if (bytes.length >= 2 && bytes[0] === 0x1f && bytes[1] === 0x8b) {
+          const ds = new DecompressionStream('gzip');
+          const writer = ds.writable.getWriter();
+          writer.write(bytes);
+          writer.close();
+
+          const reader = ds.readable.getReader();
+          const chunks = [];
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            chunks.push(value);
+          }
+          const totalLen = chunks.reduce((acc, c) => acc + c.length, 0);
+          const res = new Uint8Array(totalLen);
+          let offset = 0;
+          for (let chunk of chunks) {
+            res.set(chunk, offset);
+            offset += chunk.length;
+          }
+          return new TextDecoder().decode(res);
+        } else {
+          return new TextDecoder().decode(bytes);
+        }
+      } catch (err) {
+        console.warn('Decompress fallback:', err);
+        return base64Str;
       }
-      return new TextDecoder().decode(res);
     }
 
     async function compressGzip(rawStr) {
@@ -1116,6 +1336,7 @@
       allGames.forEach(game => {
         const card = document.createElement('div');
         card.className = `m3-game-card ${game.id === selectedGameId ? 'active' : ''}`;
+        card.dataset.gameId = game.id;
         card.tabIndex = 0;
         card.setAttribute('role', 'listitem');
         card.setAttribute('aria-label', `Select ${game.title}`);
@@ -1127,6 +1348,13 @@
         thumb.loading = 'lazy';
         thumb.decoding = 'async';
         thumb.src = game.banner_base64 || generateDefaultThumb(game.title);
+        thumb.style.cursor = 'pointer';
+        thumb.title = `Launch "${game.title}"`;
+        thumb.addEventListener('click', (e) => {
+          e.stopPropagation();
+          selectGame(game.id);
+          launchGame(game);
+        });
 
         const meta = document.createElement('div');
         meta.className = 'm3-card-meta';
@@ -1142,6 +1370,23 @@
         meta.appendChild(tag);
         meta.appendChild(title);
 
+        const actionsGroup = document.createElement('div');
+        actionsGroup.style.display = 'flex';
+        actionsGroup.style.alignItems = 'center';
+        actionsGroup.style.gap = '6px';
+        actionsGroup.style.flexShrink = '0';
+
+        const playBtn = document.createElement('button');
+        playBtn.className = 'm3-card-action-btn m3-card-play-btn';
+        playBtn.title = `Play "${game.title}"`;
+        playBtn.setAttribute('aria-label', `Play ${game.title}`);
+        playBtn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>';
+        playBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          selectGame(game.id);
+          launchGame(game);
+        });
+
         const exportBtn = document.createElement('button');
         exportBtn.className = 'm3-card-action-btn';
         exportBtn.title = `Export "${game.title}" as standalone HTML`;
@@ -1152,18 +1397,38 @@
           exportSingleGame(game);
         });
 
+        actionsGroup.appendChild(playBtn);
+        actionsGroup.appendChild(exportBtn);
+
         card.appendChild(thumb);
         card.appendChild(meta);
-        card.appendChild(exportBtn);
+        card.appendChild(actionsGroup);
 
         card.addEventListener('click', () => {
+          if (selectedGameId === game.id) {
+            launchGame(game);
+          } else {
+            selectGame(game.id);
+          }
+        });
+
+        card.addEventListener('dblclick', () => {
           selectGame(game.id);
+          launchGame(game);
         });
 
         card.addEventListener('keydown', e => {
-          if (e.key === 'Enter' || e.key === ' ') {
+          if (e.key === 'Enter') {
             e.preventDefault();
             selectGame(game.id);
+            launchGame(game);
+          } else if (e.key === ' ') {
+            e.preventDefault();
+            if (selectedGameId === game.id) {
+              launchGame(game);
+            } else {
+              selectGame(game.id);
+            }
           }
         });
 
@@ -1193,7 +1458,11 @@
         heroContent.style.display = '';
       }
 
-      const activeGame = allGames.find(g => g.id === selectedGameId) || allGames[0];
+      let activeGame = allGames.find(g => g.id === selectedGameId);
+      if (!activeGame && allGames.length > 0) {
+        selectedGameId = allGames[0].id;
+        activeGame = allGames[0];
+      }
       if (!activeGame) return;
 
       if (activeGame.banner_base64) {
@@ -1211,7 +1480,17 @@
 
     function selectGame(id) {
       selectedGameId = id;
-      renderApp();
+      const cards = document.querySelectorAll('.m3-game-card');
+      cards.forEach(c => {
+        if (c.dataset.gameId === id) {
+          c.classList.add('active');
+          c.setAttribute('aria-selected', 'true');
+        } else {
+          c.classList.remove('active');
+          c.setAttribute('aria-selected', 'false');
+        }
+      });
+      renderHeroDetails();
       const game = allGames.find(g => g.id === id);
       if (game) {
         announceToScreenReader(`Selected ${game.title}`);
@@ -1248,7 +1527,8 @@
     }
 
     async function launchGame(game) {
-      if (!game.payload_gzip) {
+      const payload = game ? (game.payload_gzip || game.compressed_data || game.payload) : null;
+      if (!payload) {
         showSnackbar('Error: Game payload is empty.');
         return;
       }
@@ -1257,7 +1537,7 @@
       announceToScreenReader(`Launching ${game.title}`);
 
       try {
-        const html = await decompressGzip(game.payload_gzip);
+        const html = await decompressGzip(payload);
         const runner = document.getElementById('runner-overlay');
         const frame = document.getElementById('game-frame');
         document.getElementById('runner-game-name').textContent = game.title;
@@ -1354,15 +1634,87 @@
       document.getElementById('studio-form').reset();
       pendingPayloadGzip = null;
       pendingBannerData = null;
-      document.getElementById('html-filename').textContent = 'Click or drag .html game file here';
+      pendingRomData = null;
+      const coreGroup = document.getElementById('emulator-core-group');
+      if (coreGroup) coreGroup.style.display = 'none';
+      document.getElementById('html-filename').textContent = 'Click or drag HTML game or ROM file here';
       document.getElementById('banner-filename').textContent = 'Click or drag image file (.png, .jpg, .webp)';
       document.getElementById('compression-stats').style.display = 'none';
       if (lastActiveElement) lastActiveElement.focus();
     }
 
+    async function rebuildRomPayload(core) {
+      if (!pendingRomData) return;
+      const title = document.getElementById('new-game-title').value.trim() || pendingRomData.filename.replace(/\.[^/.]+$/, '');
+      const html = buildEmulatorJsHtml(pendingRomData.base64, core, title);
+
+      const rawKb = (pendingRomData.rawSize / 1024).toFixed(1);
+      showSnackbar('Packaging with EmulatorJS & native Gzip...');
+      pendingPayloadGzip = await compressGzip(html);
+      const gzipKb = ((pendingPayloadGzip.length * 0.75) / 1024).toFixed(1);
+
+      const statsEl = document.getElementById('compression-stats');
+      statsEl.style.display = 'block';
+      statsEl.textContent = `${rawKb} KB ROM → ${gzipKb} KB Gzip runner (${Math.round((1 - gzipKb/rawKb)*100)}% ratio)`;
+    }
+
     async function handleHtmlFileSelect(file) {
       if (!file) return;
       document.getElementById('html-filename').textContent = file.name;
+
+      const ext = file.name.split('.').pop().toLowerCase();
+      const romInfo = ROM_SYSTEMS[ext];
+
+      // Handle retro ROM binary file
+      if (romInfo || (ext !== 'html' && ext !== 'htm')) {
+        showSnackbar('Reading ROM binary...');
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+          try {
+            const dataUrl = e.target.result;
+            const base64 = dataUrl.split(',')[1];
+            const detectedCore = romInfo ? romInfo.core : 'arcade';
+
+            pendingRomData = {
+              base64: base64,
+              rawSize: file.size,
+              filename: file.name
+            };
+
+            const coreGroup = document.getElementById('emulator-core-group');
+            const coreSelect = document.getElementById('emulator-core-select');
+            if (coreGroup && coreSelect) {
+              coreGroup.style.display = 'block';
+              coreSelect.value = detectedCore;
+            }
+
+            const titleInput = document.getElementById('new-game-title');
+            if (!titleInput.value) {
+              const inferred = file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
+              titleInput.value = inferred.charAt(0).toUpperCase() + inferred.slice(1);
+            }
+
+            const genreInput = document.getElementById('new-game-genre');
+            if (!genreInput.value && romInfo) {
+              genreInput.value = romInfo.tag;
+            }
+
+            await rebuildRomPayload(coreSelect ? coreSelect.value : detectedCore);
+            showSnackbar(`Configured ${romInfo ? romInfo.name : 'Retro Game'} with EmulatorJS`);
+          } catch (err) {
+            console.error('ROM processing error:', err);
+            showSnackbar('Error reading ROM file: ' + err.message);
+          }
+        };
+        reader.readAsDataURL(file);
+        return;
+      }
+
+      // Existing HTML game handling
+      pendingRomData = null;
+      const coreGroup = document.getElementById('emulator-core-group');
+      if (coreGroup) coreGroup.style.display = 'none';
+
       const rawText = await file.text();
 
       // Check if dropped file is an existing launcher being imported/updated
@@ -1417,7 +1769,7 @@
       reader.readAsDataURL(file);
     }
 
-    function submitNewGame() {
+    async function submitNewGame() {
       const title = document.getElementById('new-game-title').value.trim();
       const genre = document.getElementById('new-game-genre').value.trim() || 'Arcade';
       const desc = document.getElementById('new-game-desc').value.trim();
@@ -1427,20 +1779,32 @@
         document.getElementById('new-game-title').focus();
         return;
       }
+
+      if (pendingRomData) {
+        const coreSelect = document.getElementById('emulator-core-select');
+        const chosenCore = coreSelect ? coreSelect.value : 'gba';
+        const finalHtml = buildEmulatorJsHtml(pendingRomData.base64, chosenCore, title);
+        pendingPayloadGzip = await compressGzip(finalHtml);
+      }
+
       if (!pendingPayloadGzip) {
-        showSnackbar('Please choose an HTML game file.');
+        showSnackbar('Please choose an HTML game or retro ROM file.');
         return;
       }
 
       const newId = 'game_' + Date.now();
       const approxKb = Math.round((pendingPayloadGzip.length * 0.75) / 1024);
 
+      const defaultDesc = pendingRomData
+        ? `Standalone retro title powered by EmulatorJS with edge-to-edge canvas and low-latency controls.`
+        : 'Fast-paced standalone offline game with instant zero-latency canvas rendering.';
+
       const newGame = {
         id: newId,
         title: title,
         genre: genre,
         badgeTag: genre,
-        desc: desc || 'Fast-paced standalone offline game with instant zero-latency canvas rendering.',
+        desc: desc || defaultDesc,
         size_kb: approxKb,
         banner_base64: pendingBannerData || null,
         payload_gzip: pendingPayloadGzip,
@@ -1532,13 +1896,14 @@
     }
 
     async function exportSingleGame(game) {
-      if (!game || !game.payload_gzip) {
+      const payload = game ? (game.payload_gzip || game.compressed_data || game.payload) : null;
+      if (!payload) {
         showSnackbar('No game payload available to export.');
         return;
       }
       showSnackbar(`Exporting "${game.title}"...`);
       try {
-        const html = await decompressGzip(game.payload_gzip);
+        const html = await decompressGzip(payload);
         const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -2168,6 +2533,15 @@
       bannerFile.addEventListener('change', e => handleBannerFileSelect(e.target.files[0]));
       setupDragDrop(bannerDrop, f => handleBannerFileSelect(f));
 
+      const coreSelect = document.getElementById('emulator-core-select');
+      if (coreSelect) {
+        coreSelect.addEventListener('change', () => {
+          if (pendingRomData) {
+            rebuildRomPayload(coreSelect.value);
+          }
+        });
+      }
+
       // Fullscreen Toggles (Refocus game iframe and blur button)
       const railFsBtn = document.getElementById('rail-fs-btn');
       if (railFsBtn) {
@@ -2337,6 +2711,9 @@
 
         if (e.dataTransfer.files && e.dataTransfer.files[0]) {
           const file = e.dataTransfer.files[0];
+          const ext = file.name.split('.').pop().toLowerCase();
+          const isRom = !!ROM_SYSTEMS[ext];
+
           if (file.name.endsWith('.html') || file.name.endsWith('.htm')) {
             const previewText = await file.text();
             if (previewText.includes('GAMES') && (previewText.includes('__GAMES_DATA_START__') || previewText.includes('const GAMES =') || previewText.includes('let GAMES ='))) {
@@ -2345,6 +2722,9 @@
               openStudioSheet();
               handleHtmlFileSelect(file);
             }
+          } else if (isRom) {
+            openStudioSheet();
+            handleHtmlFileSelect(file);
           }
         }
       });
@@ -2367,7 +2747,7 @@
   <div class="global-drop-overlay" id="global-drop-overlay">
     <svg viewBox="0 0 24 24" width="48" height="48" fill="var(--md-sys-color-primary)"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/></svg>
     <div style="font-size: 1.25rem; font-weight: 800; letter-spacing: -0.01em;">Drop File Here</div>
-    <div style="font-size: 0.85rem; color: var(--md-sys-color-on-surface-variant);">Drop older launcher (.html) to update, or single HTML game to add to vault</div>
+    <div style="font-size: 0.85rem; color: var(--md-sys-color-on-surface-variant);">Drop older launcher (.html) to update, or HTML game / retro ROM to add to vault</div>
   </div>
 </body>
 </html>
