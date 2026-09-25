@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <meta name="launcher-version" content="1.0.2" />
+  <meta name="launcher-version" content="1.0.3" />
   <title>Game Launcher // Offline Vault</title>
   <style>
     /* ========================================================
@@ -967,7 +967,7 @@
     const GAMES = [];
     /*__GAMES_DATA_END__*/
 
-    const LAUNCHER_VERSION = '1.0.2';
+    const LAUNCHER_VERSION = '1.0.3';
     const AUTO_UPDATE_URL = 'https://raw.githubusercontent.com/lillythenova/meowmeow/main/launcher.html';
 
     /* Application State */
@@ -1023,10 +1023,10 @@
       setupEventListeners();
       renderApp();
 
-      // Auto-update check if AUTO_UPDATE_URL is configured (zero-confirmation)
+      // Check for updates if AUTO_UPDATE_URL is configured (notification dot only, NO autodownload)
       if (typeof AUTO_UPDATE_URL !== 'undefined' && AUTO_UPDATE_URL) {
         setTimeout(() => {
-          checkAndAutoUpdate(AUTO_UPDATE_URL, true);
+          checkForUpdates(AUTO_UPDATE_URL, true);
         }, 1200);
       }
     });
@@ -1514,18 +1514,18 @@
 
       const blob = new Blob(['<!DOCTYPE html>\n' + newSource], { type: 'text/html;charset=utf-8' });
       const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = customFilename || `game_launcher_${new Date().toISOString().slice(0, 10)}.html`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
       if (autoLaunch) {
-        showSnackbar('✓ Launcher exported! Launching updated instance...');
+        showSnackbar('✓ Launching updated instance...');
         setTimeout(() => {
           window.location.href = url;
-        }, 600);
+        }, 400);
       } else {
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = customFilename || `game_launcher_${new Date().toISOString().slice(0, 10)}.html`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
         URL.revokeObjectURL(url);
         showSnackbar('Launcher HTML exported successfully!');
       }
@@ -1611,6 +1611,10 @@
 
       modal.removeAttribute('hidden');
       requestAnimationFrame(() => modal.classList.add('open'));
+
+      if (typeof AUTO_UPDATE_URL !== 'undefined' && AUTO_UPDATE_URL) {
+        checkForUpdates(AUTO_UPDATE_URL, false);
+      }
     }
 
     function closeUpdateModal() {
@@ -1696,17 +1700,11 @@
           }
           const blob = new Blob([finalHtml], { type: 'text/html;charset=utf-8' });
           const dlBlobUrl = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = dlBlobUrl;
-          a.download = `launcher_updated.html`;
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
           showSnackbar(`✓ Updated! Launching updated instance with ${allGames.length} game(s)...`);
           setTimeout(() => {
             closeUpdateModal();
             window.location.href = dlBlobUrl;
-          }, 600);
+          }, 400);
         } else {
           exportVaultFile('launcher_updated.html', true);
         }
@@ -1722,7 +1720,7 @@
       }
     }
 
-    async function checkAndAutoUpdate(urlStr, silent = false) {
+    async function checkForUpdates(urlStr, silent = false) {
       const url = (urlStr || (typeof AUTO_UPDATE_URL !== 'undefined' ? AUTO_UPDATE_URL : '')).trim();
       const statusEl = document.getElementById('update-status');
 
@@ -1783,112 +1781,34 @@
           const railDot = document.getElementById('rail-update-dot');
           if (railDot) railDot.style.display = 'block';
 
-          // Zero-confirmation immediate download & upgrade!
-          if (statusEl) {
-            statusEl.style.display = 'block';
-            statusEl.innerHTML = `
-              <div style="color: var(--md-sys-color-primary); font-weight: 700;">
-                🚀 New version v${remoteVer} found! Merging games & downloading update...
-              </div>
-            `;
-          }
-          showSnackbar(`🚀 v${remoteVer} found! Auto-updating...`);
-
-          // Fetch the updated template/launcher and inject existing games + preserve update URL
-          let fetchUrl = downloadUrl;
-          if (fetchUrl.includes('github.com/') && fetchUrl.includes('/blob/')) {
-            fetchUrl = fetchUrl.replace('github.com/', 'raw.githubusercontent.com/').replace('/blob/', '/');
-          }
-
-          const dlResp = await fetch(fetchUrl);
-          if (!dlResp.ok) throw new Error(`HTTP ${dlResp.status} while downloading ${fetchUrl}`);
-          let rawHtml = await dlResp.text();
-
-          // 1. Ensure all games from this instance (memory + localStorage) are present
-          try {
-            const stored = localStorage.getItem('game_vault_library');
-            if (stored) {
-              const parsed = JSON.parse(stored);
-              if (Array.isArray(parsed)) {
-                parsed.forEach(pg => {
-                  const norm = normalizeGame(pg);
-                  if (norm && !allGames.some(g => g.id === norm.id || (norm.title && g.title === norm.title))) {
-                    allGames.push(norm);
-                  }
-                });
-              }
-            }
-          } catch (_) {}
-
-          // 2. Also preserve any pre-packaged games from remote rawHtml if not already present
-          const remoteGamesMatch = rawHtml.match(/\/\*__GAMES_DATA_START__\*\/[\s\S]*?(?:const|let|var)\s+GAMES\s*=\s*(\[[\s\S]*?\]);\s*\/\*__GAMES_DATA_END__\*\//) ||
-                                   rawHtml.match(/(?:const|let|var)\s+GAMES\s*=\s*(\[[\s\S]*?\]);/);
-          if (remoteGamesMatch && remoteGamesMatch[1]) {
-            try {
-              const remoteGames = JSON.parse(remoteGamesMatch[1]);
-              if (Array.isArray(remoteGames)) {
-                remoteGames.forEach(rg => {
-                  const norm = normalizeGame(rg);
-                  if (norm && !allGames.some(g => g.id === norm.id || (norm.title && g.title === norm.title))) {
-                    allGames.push(norm);
-                  }
-                });
-              }
-            } catch (_) {}
-          }
-
-          try {
-            localStorage.setItem('game_vault_library', JSON.stringify(allGames));
-          } catch (_) {}
-
-          // 3. Inject allGames into rawHtml
-          const startTag = '/*__GAMES_DATA_START__*/';
-          const endTag = '/*__GAMES_DATA_END__*/';
-          const sIdx = rawHtml.indexOf(startTag);
-          const eIdx = rawHtml.indexOf(endTag);
-          let finalHtml;
-
-          if (rawHtml.includes('__GAMES_DATA_PLACEHOLDER__')) {
-            finalHtml = rawHtml.replace('__GAMES_DATA_PLACEHOLDER__', JSON.stringify(allGames));
-          } else if (sIdx !== -1 && eIdx !== -1) {
-            finalHtml = rawHtml.substring(0, sIdx + startTag.length) +
-                        '\n    const GAMES = ' + JSON.stringify(allGames) + ';\n    ' +
-                        rawHtml.substring(eIdx);
-          } else if (/(?:const|let|var)\s+GAMES\s*=\s*\[[\s\S]*?\];/.test(rawHtml)) {
-            finalHtml = rawHtml.replace(/(?:const|let|var)\s+GAMES\s*=\s*\[[\s\S]*?\];/, 'const GAMES = ' + JSON.stringify(allGames) + ';');
-          } else {
-            exportVaultFile(`launcher_v${remoteVer}.html`, true);
-            showSnackbar(`✓ Updated to v${remoteVer}! Launching updated instance...`);
-            setTimeout(() => closeUpdateModal(), 800);
+          // Zero autodownload: On silent check (startup), only show indicator dot
+          if (silent) {
             return;
           }
 
-          // Ensure AUTO_UPDATE_URL is preserved in the newly downloaded file
-          if (typeof AUTO_UPDATE_URL !== 'undefined' && AUTO_UPDATE_URL) {
-            finalHtml = finalHtml.replace(/const\s+AUTO_UPDATE_URL\s*=\s*['"][^'"]*['"]/, `const AUTO_UPDATE_URL = '${AUTO_UPDATE_URL}'`);
-          }
-
-          const blob = new Blob([finalHtml], { type: 'text/html;charset=utf-8' });
-          const dlBlobUrl = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = dlBlobUrl;
-          a.download = `launcher_v${remoteVer}.html`;
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-
           if (statusEl) {
+            statusEl.style.display = 'block';
             statusEl.innerHTML = `
-              <div style="color: var(--md-sys-color-primary); font-weight: 700;">
-                ✓ Upgraded to v${remoteVer}! Added all ${allGames.length} game(s). Launching updated instance...
+              <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+                <div>
+                  <div style="color: var(--md-sys-color-primary); font-weight: 700; font-size: 0.88rem;">
+                    🚀 Version v${remoteVer} Available!
+                  </div>
+                  <div style="font-size: 0.74rem; color: var(--md-sys-color-on-surface-variant); margin-top: 3px;">
+                    Current: v${LAUNCHER_VERSION} • Will transfer all ${allGames.length} game(s) to updated launcher
+                  </div>
+                </div>
+                <button type="button" class="m3-btn-play" id="btn-apply-update" style="height: 36px; padding: 0 16px; font-size: 0.75rem; flex-shrink: 0;">
+                  🚀 Update & Launch
+                </button>
               </div>
             `;
+            const applyBtn = document.getElementById('btn-apply-update');
+            if (applyBtn) {
+              applyBtn.addEventListener('click', () => applyRemoteUpdate(remoteVer, downloadUrl));
+            }
           }
-          showSnackbar(`✓ Upgraded to v${remoteVer}! Launching updated instance with ${allGames.length} game(s)...`);
-          setTimeout(() => {
-            closeUpdateModal();
-            window.location.href = dlBlobUrl;
-          }, 600);
+          showSnackbar(`🚀 Update v${remoteVer} available!`);
 
         } else {
           const railDot = document.getElementById('rail-update-dot');
@@ -1914,6 +1834,117 @@
             : `<span style="color: var(--md-sys-color-error)">Check error: ${err.message}</span>`;
         }
         if (!silent) showSnackbar('Update check failed: ' + err.message);
+      }
+    }
+
+    async function applyRemoteUpdate(remoteVer, downloadUrl) {
+      const statusEl = document.getElementById('update-status');
+      if (statusEl) {
+        statusEl.innerHTML = `
+          <div style="color: var(--md-sys-color-primary); font-weight: 600;">
+            ⏳ Downloading update & transferring ${allGames.length} game(s)...
+          </div>
+        `;
+      }
+      showSnackbar(`Upgrading to v${remoteVer}...`);
+
+      try {
+        let fetchUrl = downloadUrl;
+        if (fetchUrl.includes('github.com/') && fetchUrl.includes('/blob/')) {
+          fetchUrl = fetchUrl.replace('github.com/', 'raw.githubusercontent.com/').replace('/blob/', '/');
+        }
+
+        const dlResp = await fetch(fetchUrl);
+        if (!dlResp.ok) throw new Error(`HTTP ${dlResp.status} while downloading ${fetchUrl}`);
+        let rawHtml = await dlResp.text();
+
+        // 1. Ensure all games from this instance (memory + localStorage) are present
+        try {
+          const stored = localStorage.getItem('game_vault_library');
+          if (stored) {
+            const parsed = JSON.parse(stored);
+            if (Array.isArray(parsed)) {
+              parsed.forEach(pg => {
+                const norm = normalizeGame(pg);
+                if (norm && !allGames.some(g => g.id === norm.id || (norm.title && g.title === norm.title))) {
+                  allGames.push(norm);
+                }
+              });
+            }
+          }
+        } catch (_) {}
+
+        // 2. Also preserve any pre-packaged games from remote rawHtml if not already present
+        const remoteGamesMatch = rawHtml.match(/\/\*__GAMES_DATA_START__\*\/[\s\S]*?(?:const|let|var)\s+GAMES\s*=\s*(\[[\s\S]*?\]);\s*\/\*__GAMES_DATA_END__\*\//) ||
+                                 rawHtml.match(/(?:const|let|var)\s+GAMES\s*=\s*(\[[\s\S]*?\]);/);
+        if (remoteGamesMatch && remoteGamesMatch[1]) {
+          try {
+            const remoteGames = JSON.parse(remoteGamesMatch[1]);
+            if (Array.isArray(remoteGames)) {
+              remoteGames.forEach(rg => {
+                const norm = normalizeGame(rg);
+                if (norm && !allGames.some(g => g.id === norm.id || (norm.title && g.title === norm.title))) {
+                  allGames.push(norm);
+                }
+              });
+            }
+          } catch (_) {}
+        }
+
+        try {
+          localStorage.setItem('game_vault_library', JSON.stringify(allGames));
+        } catch (_) {}
+
+        // 3. Inject allGames into rawHtml
+        const startTag = '/*__GAMES_DATA_START__*/';
+        const endTag = '/*__GAMES_DATA_END__*/';
+        const sIdx = rawHtml.indexOf(startTag);
+        const eIdx = rawHtml.indexOf(endTag);
+        let finalHtml;
+
+        if (rawHtml.includes('__GAMES_DATA_PLACEHOLDER__')) {
+          finalHtml = rawHtml.replace('__GAMES_DATA_PLACEHOLDER__', JSON.stringify(allGames));
+        } else if (sIdx !== -1 && eIdx !== -1) {
+          finalHtml = rawHtml.substring(0, sIdx + startTag.length) +
+                      '\n    const GAMES = ' + JSON.stringify(allGames) + ';\n    ' +
+                      rawHtml.substring(eIdx);
+        } else if (/(?:const|let|var)\s+GAMES\s*=\s*\[[\s\S]*?\];/.test(rawHtml)) {
+          finalHtml = rawHtml.replace(/(?:const|let|var)\s+GAMES\s*=\s*\[[\s\S]*?\];/, 'const GAMES = ' + JSON.stringify(allGames) + ';');
+        } else {
+          exportVaultFile(`launcher_v${remoteVer}.html`, true);
+          showSnackbar(`✓ Updated to v${remoteVer}! Launching updated instance...`);
+          setTimeout(() => closeUpdateModal(), 800);
+          return;
+        }
+
+        // Ensure AUTO_UPDATE_URL is preserved in the newly downloaded file
+        if (typeof AUTO_UPDATE_URL !== 'undefined' && AUTO_UPDATE_URL) {
+          finalHtml = finalHtml.replace(/const\s+AUTO_UPDATE_URL\s*=\s*['"][^'"]*['"]/, `const AUTO_UPDATE_URL = '${AUTO_UPDATE_URL}'`);
+        }
+
+        // NO a.download / a.click! Directly launch updated instance into browser tab
+        const blob = new Blob([finalHtml], { type: 'text/html;charset=utf-8' });
+        const dlBlobUrl = URL.createObjectURL(blob);
+
+        if (statusEl) {
+          statusEl.innerHTML = `
+            <div style="color: var(--md-sys-color-primary); font-weight: 700;">
+              ✓ Upgraded to v${remoteVer}! Added all ${allGames.length} game(s). Launching updated instance...
+            </div>
+          `;
+        }
+        showSnackbar(`✓ Upgraded to v${remoteVer}! Launching updated instance with ${allGames.length} game(s)...`);
+        setTimeout(() => {
+          closeUpdateModal();
+          window.location.href = dlBlobUrl;
+        }, 400);
+
+      } catch (err) {
+        console.error('Update apply error:', err);
+        if (statusEl) {
+          statusEl.innerHTML = `<div style="color: var(--md-sys-color-error); font-size: 0.78rem;">✕ Update error: ${err.message}</div>`;
+        }
+        showSnackbar('Failed to update: ' + err.message);
       }
     }
 
@@ -2086,7 +2117,7 @@
       const fetchUpdateUrlBtn = document.getElementById('btn-fetch-update-url');
       if (fetchUpdateUrlBtn) {
         fetchUpdateUrlBtn.addEventListener('click', () => {
-          checkAndAutoUpdate(typeof AUTO_UPDATE_URL !== 'undefined' ? AUTO_UPDATE_URL : '', false);
+          checkForUpdates(typeof AUTO_UPDATE_URL !== 'undefined' ? AUTO_UPDATE_URL : '', false);
         });
       }
 
