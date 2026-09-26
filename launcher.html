@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <meta name="launcher-version" content="1.0.8" />
+  <meta name="launcher-version" content="1.0.9" />
   <title>Game Launcher // Offline Vault</title>
   <style>
     /* ========================================================
@@ -864,7 +864,7 @@
             <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
           </div>
           <h2 class="m3-sheet-title" id="update-modal-title" style="margin: 0; font-size: 1.1rem;">Update Launcher</h2>
-          <span class="m3-hero-chip" id="current-version-chip" style="margin: 0; font-size: 0.72rem; padding: 2px 8px; font-weight: 700;">v1.0.8</span>
+          <span class="m3-hero-chip" id="current-version-chip" style="margin: 0; font-size: 0.72rem; padding: 2px 8px; font-weight: 700;">v1.0.9</span>
         </div>
         <button class="m3-icon-btn" id="close-update-btn" aria-label="Close update dialog">✕</button>
       </div>
@@ -999,8 +999,7 @@
           <span>Exit Game</span>
         </button>
       </div>
-    </div>
-    <iframe id="game-frame" class="game-frame" allow="fullscreen; autoplay; gamepad; keyboard-map" allowfullscreen="true" sandbox="allow-scripts allow-same-origin allow-pointer-lock allow-downloads" tabindex="0" title="Game Frame"></iframe>
+    <iframe id="game-frame" class="game-frame" allow="fullscreen *; autoplay *; gamepad *; keyboard-map *" tabindex="0" title="Game Frame"></iframe>
   </section>
 
   <!-- M3 Snackbar Notification Tray -->
@@ -1014,7 +1013,7 @@
     const GAMES = [];
     /*__GAMES_DATA_END__*/
 
-    const LAUNCHER_VERSION = '1.0.8';
+    const LAUNCHER_VERSION = '1.0.9';
     const AUTO_UPDATE_URL = 'https://raw.githubusercontent.com/lillythenova/meowmeow/main/launcher.html';
 
     /* Application State */
@@ -1061,11 +1060,12 @@
         return new Promise((resolve) => {
           try {
             const tx = db.transaction(['games', 'payloads'], 'readwrite');
-            const payload = game.payload_gzip || game.compressed_data || game.payload;
+            const payload = game.payload_blob || game.payload_gzip || game.compressed_data || game.payload;
             if (payload) {
               tx.objectStore('payloads').put({ id: game.id, payload: payload });
             }
             const metadata = Object.assign({}, game);
+            delete metadata.payload_blob;
             delete metadata.payload_gzip;
             delete metadata.compressed_data;
             delete metadata.payload;
@@ -1155,6 +1155,10 @@
     function buildEmulatorJsRunner(gameUrl, core, gameTitle, romFilename) {
       const safeTitle = (gameTitle || 'Retro Game').replace(/[<>&"]/g, '');
       const safeFilename = (romFilename || (safeTitle + '.chd')).replace(/[<>&"]/g, '');
+      const sOpen = '<' + 'script>';
+      const sClose = '<' + '/script>';
+      const sLoader = '<' + 'script src="https://cdn.emulatorjs.org/stable/data/loader.js">' + sClose;
+
       return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1233,7 +1237,7 @@
   <div id="game-container">
     <div id="game"></div>
   </div>
-  <` + `script>
+  ${sOpen}
     (function() {
       window.EJS_player = "#game";
       window.EJS_core = ${JSON.stringify(core)};
@@ -1242,6 +1246,8 @@
       window.EJS_backgroundColor = "#0c0e13";
       window.EJS_startOnLoaded = true;
       window.EJS_pathtodata = "https://cdn.emulatorjs.org/stable/data/";
+      window.EJS_language = "en-US";
+      window.EJS_disableAutoLang = false;
       window.EJS_gameUrl = ${JSON.stringify(gameUrl)};
 
       window.EJS_onGameStart = function() {
@@ -1260,8 +1266,8 @@
         }
       }, 7000);
     })();
-  <` + `/script>
-  <` + `script src="https://cdn.emulatorjs.org/stable/data/loader.js"><` + `/script>
+  ${sClose}
+  ${sLoader}
 </body>
 </html>`;
     }
@@ -1270,6 +1276,10 @@
       const safeTitle = (gameTitle || 'Retro Game').replace(/[<>&"]/g, '');
       const safeFilename = (romFilename || (safeTitle + '.chd')).replace(/[<>&"]/g, '');
       const cleanB64 = (romBase64 || '').includes(',') ? romBase64.split(',')[1] : (romBase64 || '').replace(/\s+/g, '');
+      const sOpen = '<' + 'script>';
+      const sClose = '<' + '/script>';
+      const sLoader = '<' + 'script src="https://cdn.emulatorjs.org/stable/data/loader.js">' + sClose;
+
       return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1348,7 +1358,7 @@
   <div id="game-container">
     <div id="game"></div>
   </div>
-  <` + `script>
+  ${sOpen}
     (function() {
       const ROM_B64 = "${cleanB64}";
       const CORE = "${core}";
@@ -1373,6 +1383,8 @@
       window.EJS_backgroundColor = "#0c0e13";
       window.EJS_startOnLoaded = true;
       window.EJS_pathtodata = "https://cdn.emulatorjs.org/stable/data/";
+      window.EJS_language = "en-US";
+      window.EJS_disableAutoLang = false;
       window.EJS_gameUrl = b64ToBlobUrl(ROM_B64);
 
       window.EJS_onGameStart = function() {
@@ -1391,8 +1403,8 @@
         }
       }, 7000);
     })();
-  <` + `/script>
-  <` + `script src="https://cdn.emulatorjs.org/stable/data/loader.js"><` + `/script>
+  ${sClose}
+  ${sLoader}
 </body>
 </html>`;
     }
@@ -1838,6 +1850,11 @@
           frame.srcdoc = runnerHtml;
         } else {
           const html = await decompressGzip(payload);
+          if (typeof html === 'string' && (html.includes('ROM_B64') || (html.includes('loader.js') && html.includes('b64ToBlobUrl')))) {
+            showSnackbar('Corrupted legacy ROM detected in vault. Please delete and re-add this ROM.');
+            announceToScreenReader('Corrupted legacy ROM detected. Please re-add this ROM.');
+            return;
+          }
           frame.srcdoc = html;
         }
 
@@ -2097,7 +2114,8 @@
 
         // Save raw Blob directly to IndexedDB (zero base64 RAM overhead)
         showSnackbar(`Saving ${pendingRomData.filename} to vault...`);
-        await VaultDB.saveGame(Object.assign({}, newGame, { payload_blob: pendingRomData.blob }));
+        newGame.payload_blob = pendingRomData.blob;
+        await VaultDB.saveGame(newGame);
         newGame._hasStoredPayload = true;
 
         closeStudioSheet();
