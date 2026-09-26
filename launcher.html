@@ -1035,17 +1035,24 @@
         if (this.db) return this.db;
         return new Promise((resolve) => {
           if (!window.indexedDB) return resolve(null);
-          const req = indexedDB.open('OfflineGameVault', 1);
-          req.onupgradeneeded = (e) => {
-            const db = e.target.result;
-            if (!db.objectStoreNames.contains('games')) db.createObjectStore('games', { keyPath: 'id' });
-            if (!db.objectStoreNames.contains('payloads')) db.createObjectStore('payloads', { keyPath: 'id' });
-          };
-          req.onsuccess = (e) => {
-            this.db = e.target.result;
-            resolve(this.db);
-          };
-          req.onerror = () => resolve(null);
+          try {
+            const timer = setTimeout(() => resolve(null), 800);
+            const req = indexedDB.open('OfflineGameVault', 1);
+            req.onupgradeneeded = (e) => {
+              const db = e.target.result;
+              if (!db.objectStoreNames.contains('games')) db.createObjectStore('games', { keyPath: 'id' });
+              if (!db.objectStoreNames.contains('payloads')) db.createObjectStore('payloads', { keyPath: 'id' });
+            };
+            req.onsuccess = (e) => {
+              clearTimeout(timer);
+              this.db = e.target.result;
+              resolve(this.db);
+            };
+            req.onerror = () => { clearTimeout(timer); resolve(null); };
+            req.onblocked = () => { clearTimeout(timer); resolve(null); };
+          } catch (_) {
+            resolve(null);
+          }
         });
       },
       async saveGame(game) {
@@ -1412,42 +1419,9 @@
     }
 
     /* Initialize Application */
-    document.addEventListener('DOMContentLoaded', async () => {
+    document.addEventListener('DOMContentLoaded', () => {
       const rawList = Array.isArray(GAMES) ? GAMES : [];
       allGames = rawList.map(normalizeGame).filter(Boolean);
-
-      // 1. Read persistent IndexedDB vault
-      try {
-        const idbGames = await VaultDB.getAllGames();
-        if (Array.isArray(idbGames)) {
-          idbGames.forEach(ig => {
-            const norm = normalizeGame(ig);
-            if (norm && !allGames.some(g => g.id === norm.id)) {
-              allGames.push(norm);
-            }
-          });
-        }
-      } catch (e) {
-        console.warn('VaultDB read error:', e);
-      }
-
-      // 2. Fallback to localStorage for legacy games
-      try {
-        const stored = localStorage.getItem('game_vault_library');
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          if (Array.isArray(parsed)) {
-            parsed.forEach(pg => {
-              const norm = normalizeGame(pg);
-              if (norm && !allGames.some(g => g.id === norm.id)) {
-                allGames.push(norm);
-              }
-            });
-          }
-        }
-      } catch (e) {
-        console.warn('Storage read error:', e);
-      }
 
       if (allGames.length > 0) {
         selectedGameId = allGames[0].id;
@@ -1455,6 +1429,51 @@
 
       setupEventListeners();
       renderApp();
+
+      // Read persistent IndexedDB vault asynchronously
+      (async () => {
+        let changed = false;
+        try {
+          const idbGames = await VaultDB.getAllGames();
+          if (Array.isArray(idbGames) && idbGames.length > 0) {
+            idbGames.forEach(ig => {
+              const norm = normalizeGame(ig);
+              if (norm && !allGames.some(g => g.id === norm.id)) {
+                allGames.push(norm);
+                changed = true;
+              }
+            });
+          }
+        } catch (e) {
+          console.warn('VaultDB read error:', e);
+        }
+
+        // Fallback to localStorage for legacy games
+        try {
+          const stored = localStorage.getItem('game_vault_library');
+          if (stored) {
+            const parsed = JSON.parse(stored);
+            if (Array.isArray(parsed)) {
+              parsed.forEach(pg => {
+                const norm = normalizeGame(pg);
+                if (norm && !allGames.some(g => g.id === norm.id)) {
+                  allGames.push(norm);
+                  changed = true;
+                }
+              });
+            }
+          }
+        } catch (e) {
+          console.warn('Storage read error:', e);
+        }
+
+        if (changed) {
+          if (!selectedGameId && allGames.length > 0) {
+            selectedGameId = allGames[0].id;
+          }
+          renderApp();
+        }
+      })();
 
       // 3. Low-Memory Optimizer: Asynchronously migrate raw payloads into IndexedDB
       // and purge them from the active JavaScript heap
