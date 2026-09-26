@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <meta name="launcher-version" content="1.0.5" />
+  <meta name="launcher-version" content="1.0.6" />
   <title>Game Launcher // Offline Vault</title>
   <style>
     /* ========================================================
@@ -864,7 +864,7 @@
             <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
           </div>
           <h2 class="m3-sheet-title" id="update-modal-title" style="margin: 0; font-size: 1.1rem;">Update Launcher</h2>
-          <span class="m3-hero-chip" id="current-version-chip" style="margin: 0; font-size: 0.72rem; padding: 2px 8px; font-weight: 700;">v1.0.5</span>
+          <span class="m3-hero-chip" id="current-version-chip" style="margin: 0; font-size: 0.72rem; padding: 2px 8px; font-weight: 700;">v1.0.6</span>
         </div>
         <button class="m3-icon-btn" id="close-update-btn" aria-label="Close update dialog">✕</button>
       </div>
@@ -1013,7 +1013,7 @@
     const GAMES = [];
     /*__GAMES_DATA_END__*/
 
-    const LAUNCHER_VERSION = '1.0.5';
+    const LAUNCHER_VERSION = '1.0.6';
     const AUTO_UPDATE_URL = 'https://raw.githubusercontent.com/lillythenova/meowmeow/main/launcher.html';
 
     /* Application State */
@@ -1024,6 +1024,96 @@
     let pendingRomData = null;
     let lastActiveElement = null;
     let fpsInterval = null;
+
+    /* ========================================================
+       VAULT STORAGE: INDEXEDDB ENGINE (LOW IDLE MEMORY)
+       ======================================================== */
+    const VaultDB = {
+      db: null,
+      async init() {
+        if (this.db) return this.db;
+        return new Promise((resolve) => {
+          if (!window.indexedDB) return resolve(null);
+          const req = indexedDB.open('OfflineGameVault', 1);
+          req.onupgradeneeded = (e) => {
+            const db = e.target.result;
+            if (!db.objectStoreNames.contains('games')) db.createObjectStore('games', { keyPath: 'id' });
+            if (!db.objectStoreNames.contains('payloads')) db.createObjectStore('payloads', { keyPath: 'id' });
+          };
+          req.onsuccess = (e) => {
+            this.db = e.target.result;
+            resolve(this.db);
+          };
+          req.onerror = () => resolve(null);
+        });
+      },
+      async saveGame(game) {
+        const db = await this.init();
+        if (!db) return false;
+        return new Promise((resolve) => {
+          try {
+            const tx = db.transaction(['games', 'payloads'], 'readwrite');
+            const payload = game.payload_gzip || game.compressed_data || game.payload;
+            if (payload) {
+              tx.objectStore('payloads').put({ id: game.id, payload: payload });
+            }
+            const metadata = Object.assign({}, game);
+            delete metadata.payload_gzip;
+            delete metadata.compressed_data;
+            delete metadata.payload;
+            metadata._hasStoredPayload = true;
+            tx.objectStore('games').put(metadata);
+            tx.oncomplete = () => resolve(true);
+            tx.onerror = () => resolve(false);
+          } catch (_) {
+            resolve(false);
+          }
+        });
+      },
+      async getPayload(gameId) {
+        const db = await this.init();
+        if (!db) return null;
+        return new Promise((resolve) => {
+          try {
+            const tx = db.transaction('payloads', 'readonly');
+            const req = tx.objectStore('payloads').get(gameId);
+            req.onsuccess = () => resolve(req.result ? req.result.payload : null);
+            req.onerror = () => resolve(null);
+          } catch (_) {
+            resolve(null);
+          }
+        });
+      },
+      async getAllGames() {
+        const db = await this.init();
+        if (!db) return [];
+        return new Promise((resolve) => {
+          try {
+            const tx = db.transaction('games', 'readonly');
+            const req = tx.objectStore('games').getAll();
+            req.onsuccess = () => resolve(req.result || []);
+            req.onerror = () => resolve([]);
+          } catch (_) {
+            resolve([]);
+          }
+        });
+      },
+      async deleteGame(gameId) {
+        const db = await this.init();
+        if (!db) return false;
+        return new Promise((resolve) => {
+          try {
+            const tx = db.transaction(['games', 'payloads'], 'readwrite');
+            tx.objectStore('games').delete(gameId);
+            tx.objectStore('payloads').delete(gameId);
+            tx.oncomplete = () => resolve(true);
+            tx.onerror = () => resolve(false);
+          } catch (_) {
+            resolve(false);
+          }
+        });
+      }
+    };
 
     /* EmulatorJS Retro Systems & Core Mapping */
     const ROM_SYSTEMS = {
@@ -1200,10 +1290,26 @@
     }
 
     /* Initialize Application */
-    document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', async () => {
       const rawList = Array.isArray(GAMES) ? GAMES : [];
       allGames = rawList.map(normalizeGame).filter(Boolean);
 
+      // 1. Read persistent IndexedDB vault
+      try {
+        const idbGames = await VaultDB.getAllGames();
+        if (Array.isArray(idbGames)) {
+          idbGames.forEach(ig => {
+            const norm = normalizeGame(ig);
+            if (norm && !allGames.some(g => g.id === norm.id)) {
+              allGames.push(norm);
+            }
+          });
+        }
+      } catch (e) {
+        console.warn('VaultDB read error:', e);
+      }
+
+      // 2. Fallback to localStorage for legacy games
       try {
         const stored = localStorage.getItem('game_vault_library');
         if (stored) {
@@ -1227,6 +1333,32 @@
 
       setupEventListeners();
       renderApp();
+
+      // 3. Low-Memory Optimizer: Asynchronously migrate raw payloads into IndexedDB
+      // and purge them from the active JavaScript heap
+      setTimeout(async () => {
+        try {
+          for (let g of allGames) {
+            const payload = g.payload_gzip || g.compressed_data || g.payload;
+            if (payload) {
+              await VaultDB.saveGame(g);
+              delete g.payload_gzip;
+              delete g.compressed_data;
+              delete g.payload;
+              g._hasStoredPayload = true;
+            }
+          }
+          if (typeof GAMES !== 'undefined' && Array.isArray(GAMES)) {
+            GAMES.forEach(g => {
+              if (g) {
+                delete g.payload_gzip;
+                delete g.compressed_data;
+                delete g.payload;
+              }
+            });
+          }
+        } catch (_) {}
+      }, 400);
 
       // Check for updates if AUTO_UPDATE_URL is configured (notification dot only, NO autodownload)
       if (typeof AUTO_UPDATE_URL !== 'undefined' && AUTO_UPDATE_URL) {
@@ -1527,7 +1659,11 @@
     }
 
     async function launchGame(game) {
-      const payload = game ? (game.payload_gzip || game.compressed_data || game.payload) : null;
+      let payload = game ? (game.payload_gzip || game.compressed_data || game.payload) : null;
+      if (!payload && game) {
+        showSnackbar(`Loading ${game.title} from vault...`);
+        payload = await VaultDB.getPayload(game.id);
+      }
       if (!payload) {
         showSnackbar('Error: Game payload is empty.');
         return;
@@ -1815,11 +1951,13 @@
       allGames.unshift(newGame);
       selectedGameId = newId;
 
-      try {
-        const stored = JSON.parse(localStorage.getItem('game_vault_library') || '[]');
-        stored.unshift(newGame);
-        localStorage.setItem('game_vault_library', JSON.stringify(stored));
-      } catch (e) {}
+      // Save to IndexedDB and purge heavy payload from in-memory object
+      VaultDB.saveGame(newGame).then(() => {
+        delete newGame.payload_gzip;
+        delete newGame.compressed_data;
+        delete newGame.payload;
+        newGame._hasStoredPayload = true;
+      });
 
       closeStudioSheet();
       renderApp();
@@ -1832,14 +1970,7 @@
       if (!game) return;
       game.isFavorite = !game.isFavorite;
 
-      try {
-        const stored = JSON.parse(localStorage.getItem('game_vault_library') || '[]');
-        const target = stored.find(g => g.id === game.id);
-        if (target) {
-          target.isFavorite = game.isFavorite;
-          localStorage.setItem('game_vault_library', JSON.stringify(stored));
-        }
-      } catch (e) {}
+      VaultDB.saveGame(game);
 
       renderApp();
       showSnackbar(game.isFavorite ? `Added ${game.title} to favorites` : `Removed ${game.title} from favorites`);
@@ -1848,9 +1979,17 @@
     /* ========================================================
        EXPORT ENGINE: FULL VAULT & SINGULAR GAMES
        ======================================================== */
-    function exportVaultFile(customFilename, autoLaunch = false) {
-      showSnackbar('Generating standalone launcher bundle...');
-      const serialized = JSON.stringify(allGames);
+    async function exportVaultFile(customFilename, autoLaunch = false) {
+      showSnackbar('Gathering games from vault for export...');
+      const fullGames = [];
+      for (let g of allGames) {
+        let p = g.payload_gzip || g.compressed_data || g.payload;
+        if (!p) {
+          p = await VaultDB.getPayload(g.id);
+        }
+        fullGames.push(Object.assign({}, g, { payload_gzip: p }));
+      }
+      const serialized = JSON.stringify(fullGames);
       let docMarkup = document.documentElement.outerHTML;
       const startTag = '/*__GAMES_DATA_START__*/';
       const endTag = '/*__GAMES_DATA_END__*/';
@@ -1896,7 +2035,11 @@
     }
 
     async function exportSingleGame(game) {
-      const payload = game ? (game.payload_gzip || game.compressed_data || game.payload) : null;
+      if (!game) return;
+      let payload = game.payload_gzip || game.compressed_data || game.payload;
+      if (!payload) {
+        payload = await VaultDB.getPayload(game.id);
+      }
       if (!payload) {
         showSnackbar('No game payload available to export.');
         return;
